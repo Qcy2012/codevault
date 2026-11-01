@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>注册 - CodeVault</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="index.html">CodeVault</a>
+    <nav id="nav-auth"></nav>
+  </header>
+
+  <main class="container narrow">
+    <h1>注册</h1>
+    <form id="register-form" class="card form">
+      <label>昵称 <input type="text" name="display_name" required maxlength="64"></label>
+      <label>邮箱 <input type="email" name="email" required></label>
+      <label>密码 <input type="password" name="password" required minlength="6" maxlength="72"></label>
+      <button type="submit">注册</button>
+      <p id="msg" class="message"></p>
+      <p>已有账号？<a href="login.html">登录</a></p>
+    </form>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    document.getElementById("register-form").addEventListener("submit", handleRegister);
+  </script>
+</body>
+</html>

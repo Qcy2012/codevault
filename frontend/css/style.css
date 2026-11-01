@@ -1,0 +1,97 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+  line-height: 1.6;
+}
+
+a { color: #38bdf8; text-decoration: none; }
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: #1e293b;
+}
+
+.logo { font-weight: 700; font-size: 1.2rem; color: #f8fafc; }
+#nav-auth { display: flex; gap: 12px; align-items: center; }
+
+.container { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+.container.narrow { max-width: 480px; }
+
+.card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+input, select, textarea {
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: inherit;
+}
+
+input:focus, select:focus, textarea:focus { outline: 2px solid #38bdf8; }
+
+button, .button {
+  background: #0284c7;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font: inherit;
+  display: inline-block;
+}
+
+button:hover, .button:hover { background: #0369a1; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.danger { background: #dc2626; }
+
+.form { display: flex; flex-direction: column; gap: 12px; }
+.form label { display: flex; flex-direction: column; gap: 4px; }
+.form label.inline { flex-direction: row; align-items: center; gap: 8px; }
+
+.message.error { color: #f87171; }
+.message.success { color: #4ade80; }
+
+.list { display: flex; flex-direction: column; gap: 12px; }
+.snippet-card h2 { margin: 0 0 8px; font-size: 1.1rem; }
+
+.meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  align-items: center;
+}
+
+.tag { background: #334155; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; }
+.lang { background: #075985; color: #e0f2fe; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
+.muted { color: #94a3b8; }
+.hidden { display: none; }
+
+.pager {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  margin: 24px 0;
+}
+
+pre { background: #020617; padding: 16px; border-radius: 8px; overflow: auto; }
+.markdown { margin: 16px 0; }
+.actions { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
