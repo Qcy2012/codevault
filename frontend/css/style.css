@@ -2,10 +2,11 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   background: #0f172a;
   color: #e2e8f0;
   line-height: 1.6;
+  font-size: 16px; /* 稍微调大一点点全局字体 */
 }
 
 a { color: #38bdf8; text-decoration: none; }
@@ -41,6 +42,13 @@ input, select, textarea {
   border-radius: 6px;
   padding: 8px 10px;
   font: inherit;
+}
+
+/* 新增：让编辑代码的 textarea 显示等宽字体，并调大字号 */
+textarea {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 input:focus, select:focus, textarea:focus { outline: 2px solid #38bdf8; }
@@ -92,6 +100,25 @@ button.danger { background: #dc2626; }
   margin: 24px 0;
 }
 
-pre { background: #020617; padding: 16px; border-radius: 8px; overflow: auto; }
+/* 修改原有的 pre 样式 */
+pre {
+  background: #020617;
+  padding: 16px;
+  border-radius: 8px;
+  overflow: auto;
+}
+
+/* 新增：专门针对代码块和行内代码设定 Consolas 字体 */
+pre, code {
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* highlight.js 有时会覆盖字体，强制覆盖一下 */
+.hljs {
+  font-family: "Consolas", "Courier New", monospace !important;
+}
+
 .markdown { margin: 16px 0; }
 .actions { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
