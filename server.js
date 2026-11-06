@@ -7,6 +7,7 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import authRoutes from "./routes/auth.js";
 import snippetRoutes from "./routes/snippets.js";
 import tagRoutes from "./routes/tags.js";
+import adminRoutes from "./routes/admin.js";
 
 const app = new Hono();
 
@@ -24,6 +25,7 @@ app.use(
 app.route("/api/auth", authRoutes);
 app.route("/api/snippets", snippetRoutes);
 app.route("/api/tags", tagRoutes);
+app.route("/api/admin", adminRoutes);
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 

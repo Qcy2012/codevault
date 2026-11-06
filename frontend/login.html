@@ -15,7 +15,8 @@
   <main class="container narrow">
     <h1>登录</h1>
     <form id="login-form" class="card form">
-      <label>邮箱 <input type="email" name="email" required></label>
+      <!-- 修改前：<label>邮箱 <input type="email" name="email" required></label> -->
+      <label>邮箱或用户名 <input type="text" name="account" required></label>
       <label>密码 <input type="password" name="password" required minlength="6"></label>
       <button type="submit">登录</button>
       <p id="msg" class="message"></p>

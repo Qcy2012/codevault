@@ -78,6 +78,7 @@ snippets.get("/", optionalAuth, async (c) => {
     return c.json({ detail: "请先登录" }, 401);
   }
 
+  let joinClause = "";
   const conditions = [];
   const params = [];
 
@@ -85,9 +86,9 @@ snippets.get("/", optionalAuth, async (c) => {
     conditions.push("s.user_id = ?");
     params.push(current.id);
   } else if (scope === "favorites") {
-    conditions.push(
-      "s.id IN (SELECT snippet_id FROM favorites WHERE user_id = ?)"
-    );
+    // 改成 JOIN 查询，避开 IN (SELECT ...) 导致的崩溃
+    joinClause += " JOIN favorites f ON f.snippet_id = s.id ";
+    conditions.push("f.user_id = ?");
     params.push(current.id);
   } else {
     conditions.push("s.is_public = 1");
@@ -99,9 +100,9 @@ snippets.get("/", optionalAuth, async (c) => {
   }
 
   if (tag) {
-    conditions.push(
-      "s.id IN (SELECT st.snippet_id FROM snippet_tags st JOIN tags t ON t.id = st.tag_id WHERE t.name = ?)"
-    );
+    // 改成 JOIN 查询标签
+    joinClause += " JOIN snippet_tags st ON st.snippet_id = s.id JOIN tags t ON t.id = st.tag_id ";
+    conditions.push("t.name = ?");
     params.push(tag);
   }
 
@@ -113,17 +114,21 @@ snippets.get("/", optionalAuth, async (c) => {
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
+  // 注意：因为有 JOIN，查询总数必须用 COUNT(DISTINCT s.id) 避免重复计数
   const countRow = await db
-    .prepare(`SELECT COUNT(*) AS total FROM snippets s ${where}`)
+    .prepare(`SELECT COUNT(DISTINCT s.id) AS total FROM snippets s ${joinClause} ${where}`)
     .get(...params);
   const total = countRow?.total || 0;
 
   const offset = (page - 1) * pageSize;
+  
+  // 注意：SELECT DISTINCT s.* 也是为了防止 JOIN 导致一行数据出现多次
   const rows = await db
     .prepare(
-      `SELECT s.*, u.display_name
+      `SELECT DISTINCT s.*, u.display_name
        FROM snippets s
        JOIN users u ON u.id = s.user_id
+       ${joinClause}
        ${where}
        ORDER BY s.created_at DESC
        LIMIT ${pageSize} OFFSET ${offset}`
