@@ -1,8 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { serve } from "@hono/node-server";
-import { serveStatic } from "@hono/node-server/serve-static";
 
 import authRoutes from "./routes/auth.js";
 import snippetRoutes from "./routes/snippets.js";
@@ -12,7 +10,6 @@ import adminRoutes from "./routes/admin.js";
 const app = new Hono();
 
 app.use("*", logger());
-
 app.use(
   "/api/*",
   cors({
@@ -29,11 +26,5 @@ app.route("/api/admin", adminRoutes);
 
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 
-// 前端静态文件（开发时由 Hono 直接托管；生产可改为 Cloudflare Pages 独立部署）
-app.use("/*", serveStatic({ root: "./frontend" }));
-
-const port = Number(process.env.PORT) || 3000;
-
-serve({ fetch: app.fetch, port }, () => {
-  console.log(`CodeVault running at http://127.0.0.1:${port}`);
-});
+// Vercel 的 Node.js Serverless 环境要求默认导出一个请求处理函数
+export default app;
