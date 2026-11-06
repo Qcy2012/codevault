@@ -1,1 +1,1 @@
-const API_BASE = "qcy2012-codevault.vercel.app";
+const API_BASE = "codevault.qcyblog.dpdns.org";
