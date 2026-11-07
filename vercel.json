@@ -1,11 +1,4 @@
 {
-  "framework": "nitro",
   "buildCommand": "npm install",
-  "outputDirectory": "public",
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.js"
-    }
-  ]
+  "outputDirectory": "public"
 }
