@@ -1,1 +1,1 @@
-const API_BASE = "codevault.qcyblog.dpdns.org";
+const API_BASE = "https://codevault.qcyblog.dpdns.org";
