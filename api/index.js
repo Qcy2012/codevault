@@ -9,15 +9,6 @@ import adminRoutes from "../routes/admin.js";
 
 const app = new Hono().basePath("/api");
 
-// 全局错误捕获，把真实错误返回给前端
-app.onError((err, c) => {
-  console.error("💥 后端发生错误:", err);
-  return c.json({ 
-    detail: `服务器内部错误: ${err.message}`,
-    stack: err.stack 
-  }, 500);
-});
-
 app.use("*", logger());
 app.use(
   "*",
