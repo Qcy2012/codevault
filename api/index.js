@@ -7,16 +7,19 @@ import snippetRoutes from "../routes/snippets.js";
 import tagRoutes from "../routes/tags.js";
 import adminRoutes from "../routes/admin.js";
 
-const app = new Hono().basePath("/api"); // 统一设置 /api 前缀
+const app = new Hono().basePath("/api");
 
 app.use("*", logger());
-app.use("*", cors({
-  origin: (origin) => origin || "*",
-  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
-}));
+app.use(
+  "*",
+  cors({
+    origin: (origin) => origin || "*",
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-// 挂载路由时，路径不要再包含 /api
+// 因为前面设置了 basePath("/api")，这里直接写 "/auth" 即可
 app.route("/auth", authRoutes);
 app.route("/snippets", snippetRoutes);
 app.route("/tags", tagRoutes);
@@ -24,5 +27,5 @@ app.route("/admin", adminRoutes);
 
 app.get("/health", (c) => c.json({ status: "ok" }));
 
-// 确保所有路由都已注册，最后再导出
+// 直接导出 Hono 实例给 Vercel
 export default app;

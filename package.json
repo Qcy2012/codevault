@@ -8,7 +8,9 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",
-    "@tursodatabase/database": "^0.1.0",
+    "@libsql/client": "^0.18.0",
+    "@tursodatabase/database": "^0.1.5",
+    "@tursodatabase/serverless": "^1.4.1",
     "bcryptjs": "^2.4.3",
     "hono": "^4.6.0",
     "jsonwebtoken": "^9.0.2"
