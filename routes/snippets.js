@@ -26,18 +26,17 @@ function rowToSnippet(row, tags = []) {
 async function loadTagsForSnippets(snippetIds) {
   if (!snippetIds.length) return new Map();
   const placeholders = snippetIds.map(() => "?").join(",");
-  const rows = await db
-    .prepare(
-      `SELECT st.snippet_id, t.id, t.name
-       FROM snippet_tags st
-       JOIN tags t ON t.id = st.tag_id
-       WHERE st.snippet_id IN (${placeholders})
-       ORDER BY t.name`
-    )
-    .all(...snippetIds);
+  const res = await db.execute({
+    sql: `SELECT st.snippet_id, t.id, t.name
+          FROM snippet_tags st
+          JOIN tags t ON t.id = st.tag_id
+          WHERE st.snippet_id IN (${placeholders})
+          ORDER BY t.name`,
+    args: snippetIds
+  });
 
   const map = new Map();
-  for (const row of rows) {
+  for (const row of res.rows) {
     if (!map.has(row.snippet_id)) map.set(row.snippet_id, []);
     map.get(row.snippet_id).push({ id: row.id, name: row.name });
   }
@@ -52,11 +51,9 @@ async function getOrCreateTags(names) {
     if (!name || seen.has(name)) continue;
     seen.add(name);
 
-    let tag = await db.prepare("SELECT id, name FROM tags WHERE name = ?").get(name);
+    let tag = (await db.execute({ sql: "SELECT id, name FROM tags WHERE name = ?", args: [name] })).rows[0];
     if (!tag) {
-      const result = await db
-        .prepare("INSERT INTO tags (name) VALUES (?)")
-        .run(name);
+      const result = await db.execute({ sql: "INSERT INTO tags (name) VALUES (?)", args: [name] });
       tag = { id: Number(result.lastInsertRowid), name };
     }
     tags.push(tag);
@@ -86,7 +83,6 @@ snippets.get("/", optionalAuth, async (c) => {
     conditions.push("s.user_id = ?");
     params.push(current.id);
   } else if (scope === "favorites") {
-    // 改成 JOIN 查询，避开 IN (SELECT ...) 导致的崩溃
     joinClause += " JOIN favorites f ON f.snippet_id = s.id ";
     conditions.push("f.user_id = ?");
     params.push(current.id);
@@ -100,7 +96,6 @@ snippets.get("/", optionalAuth, async (c) => {
   }
 
   if (tag) {
-    // 改成 JOIN 查询标签
     joinClause += " JOIN snippet_tags st ON st.snippet_id = s.id JOIN tags t ON t.id = st.tag_id ";
     conditions.push("t.name = ?");
     params.push(tag);
@@ -114,31 +109,29 @@ snippets.get("/", optionalAuth, async (c) => {
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  // 注意：因为有 JOIN，查询总数必须用 COUNT(DISTINCT s.id) 避免重复计数
-  const countRow = await db
-    .prepare(`SELECT COUNT(DISTINCT s.id) AS total FROM snippets s ${joinClause} ${where}`)
-    .get(...params);
+  const countRow = (await db.execute({
+    sql: `SELECT COUNT(DISTINCT s.id) AS total FROM snippets s ${joinClause} ${where}`,
+    args: params
+  })).rows[0];
   const total = countRow?.total || 0;
 
   const offset = (page - 1) * pageSize;
   
-  // 注意：SELECT DISTINCT s.* 也是为了防止 JOIN 导致一行数据出现多次
-  const rows = await db
-    .prepare(
-      `SELECT DISTINCT s.*, u.display_name
-       FROM snippets s
-       JOIN users u ON u.id = s.user_id
-       ${joinClause}
-       ${where}
-       ORDER BY s.created_at DESC
-       LIMIT ${pageSize} OFFSET ${offset}`
-    )
-    .all(...params);
+  const res = await db.execute({
+    sql: `SELECT DISTINCT s.*, u.display_name
+          FROM snippets s
+          JOIN users u ON u.id = s.user_id
+          ${joinClause}
+          ${where}
+          ORDER BY s.created_at DESC
+          LIMIT ${pageSize} OFFSET ${offset}`,
+    args: params
+  });
 
-  const tagMap = await loadTagsForSnippets(rows.map((r) => r.id));
+  const tagMap = await loadTagsForSnippets(res.rows.map((r) => r.id));
 
   return c.json({
-    items: rows.map((r) => rowToSnippet(r, tagMap.get(r.id) || [])),
+    items: res.rows.map((r) => rowToSnippet(r, tagMap.get(r.id) || [])),
     total,
     page,
     page_size: pageSize,
@@ -149,14 +142,14 @@ snippets.get("/:id", optionalAuth, async (c) => {
   const id = Number(c.req.param("id"));
   if (!id) return c.json({ detail: "无效的片段 ID" }, 400);
 
-  const row = await db
-    .prepare(
-      `SELECT s.*, u.display_name
-       FROM snippets s
-       JOIN users u ON u.id = s.user_id
-       WHERE s.id = ?`
-    )
-    .get(id);
+  const res = await db.execute({
+    sql: `SELECT s.*, u.display_name
+          FROM snippets s
+          JOIN users u ON u.id = s.user_id
+          WHERE s.id = ?`,
+    args: [id]
+  });
+  const row = res.rows[0];
 
   if (!row) return c.json({ detail: "片段不存在" }, 404);
 
@@ -165,9 +158,10 @@ snippets.get("/:id", optionalAuth, async (c) => {
     return c.json({ detail: "片段不存在" }, 404);
   }
 
-  await db
-    .prepare("UPDATE snippets SET view_count = view_count + 1 WHERE id = ?")
-    .run(id);
+  await db.execute({
+    sql: "UPDATE snippets SET view_count = view_count + 1 WHERE id = ?",
+    args: [id]
+  });
 
   row.view_count += 1;
   const tagMap = await loadTagsForSnippets([id]);
@@ -189,29 +183,20 @@ snippets.post("/", requireAuth, async (c) => {
   const current = c.get("user");
   const isPublic = body.is_public !== false ? 1 : 0;
 
-  const result = await db
-    .prepare(
-      `INSERT INTO snippets (user_id, title, description, language, code, is_public)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      current.id,
-      title,
-      body.description || null,
-      language,
-      code,
-      isPublic
-    );
+  const result = await db.execute({
+    sql: `INSERT INTO snippets (user_id, title, description, language, code, is_public)
+          VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [current.id, title, body.description || null, language, code, isPublic]
+  });
 
   const snippetId = Number(result.lastInsertRowid);
   const tags = await getOrCreateTags(body.tags || []);
 
   for (const tag of tags) {
-    await db
-      .prepare(
-        "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING"
-      )
-      .run(snippetId, tag.id);
+    await db.execute({
+      sql: "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+      args: [snippetId, tag.id]
+    });
   }
 
   return c.json(
@@ -234,7 +219,7 @@ snippets.put("/:id", requireAuth, async (c) => {
   const body = await c.req.json().catch(() => null);
   if (!body) return c.json({ detail: "请求格式错误" }, 400);
 
-  const existing = await db.prepare("SELECT * FROM snippets WHERE id = ?").get(id);
+  const existing = (await db.execute({ sql: "SELECT * FROM snippets WHERE id = ?", args: [id] })).rows[0];
   if (!existing) return c.json({ detail: "片段不存在" }, 404);
   if (existing.user_id !== current.id && !current.is_admin) {
     return c.json({ detail: "无权修改" }, 403);
@@ -256,20 +241,21 @@ snippets.put("/:id", requireAuth, async (c) => {
 
   if (fields.length) {
     fields.push("updated_at = datetime('now')");
-    await db
-      .prepare(`UPDATE snippets SET ${fields.join(", ")} WHERE id = ?`)
-      .run(...values, id);
+    values.push(id);
+    await db.execute({
+      sql: `UPDATE snippets SET ${fields.join(", ")} WHERE id = ?`,
+      args: values
+    });
   }
 
   if (Array.isArray(body.tags)) {
-    await db.prepare("DELETE FROM snippet_tags WHERE snippet_id = ?").run(id);
+    await db.execute({ sql: "DELETE FROM snippet_tags WHERE snippet_id = ?", args: [id] });
     const tags = await getOrCreateTags(body.tags);
     for (const tag of tags) {
-      await db
-        .prepare(
-          "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING"
-        )
-        .run(id, tag.id);
+      await db.execute({
+        sql: "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+        args: [id, tag.id]
+      });
     }
   }
 
@@ -280,13 +266,13 @@ snippets.delete("/:id", requireAuth, async (c) => {
   const id = Number(c.req.param("id"));
   const current = c.get("user");
 
-  const existing = await db.prepare("SELECT * FROM snippets WHERE id = ?").get(id);
+  const existing = (await db.execute({ sql: "SELECT * FROM snippets WHERE id = ?", args: [id] })).rows[0];
   if (!existing) return c.json({ detail: "片段不存在" }, 404);
   if (existing.user_id !== current.id && !current.is_admin) {
     return c.json({ detail: "无权删除" }, 403);
   }
 
-  await db.prepare("DELETE FROM snippets WHERE id = ?").run(id);
+  await db.execute({ sql: "DELETE FROM snippets WHERE id = ?", args: [id] });
   return c.body(null, 204);
 });
 
@@ -294,16 +280,13 @@ snippets.post("/:id/favorite", requireAuth, async (c) => {
   const id = Number(c.req.param("id"));
   const current = c.get("user");
 
-  const snippet = await db
-    .prepare("SELECT id FROM snippets WHERE id = ? AND is_public = 1")
-    .get(id);
+  const snippet = (await db.execute({ sql: "SELECT id FROM snippets WHERE id = ? AND is_public = 1", args: [id] })).rows[0];
   if (!snippet) return c.json({ detail: "片段不存在" }, 404);
 
-  await db
-    .prepare(
-      "INSERT INTO favorites (user_id, snippet_id) VALUES (?, ?) ON CONFLICT DO NOTHING"
-    )
-    .run(current.id, id);
+  await db.execute({
+    sql: "INSERT INTO favorites (user_id, snippet_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+    args: [current.id, id]
+  });
 
   return c.body(null, 204);
 });
@@ -312,9 +295,10 @@ snippets.delete("/:id/favorite", requireAuth, async (c) => {
   const id = Number(c.req.param("id"));
   const current = c.get("user");
 
-  await db
-    .prepare("DELETE FROM favorites WHERE user_id = ? AND snippet_id = ?")
-    .run(current.id, id);
+  await db.execute({
+    sql: "DELETE FROM favorites WHERE user_id = ? AND snippet_id = ?",
+    args: [current.id, id]
+  });
 
   return c.body(null, 204);
 });

@@ -4,7 +4,6 @@ import { requireAuth } from "../middleware/auth.js";
 
 const admin = new Hono();
 
-// 校验管理员权限的中间件
 const requireAdmin = async (c, next) => {
   const user = c.get("user");
   if (!user || !user.is_admin) {
@@ -15,30 +14,29 @@ const requireAdmin = async (c, next) => {
 
 admin.use("*", requireAuth, requireAdmin);
 
-// 获取所有片段
 admin.get("/snippets", async (c) => {
-  const rows = await db.prepare(`
+  const res = await db.execute(`
     SELECT s.id, s.title, s.is_public, u.display_name 
     FROM snippets s 
     JOIN users u ON u.id = s.user_id 
     ORDER BY s.created_at DESC
-  `).all();
-  return c.json(rows);
+  `);
+  return c.json(res.rows);
 });
 
-// 修改公开状态
 admin.put("/snippets/:id/visibility", async (c) => {
   const id = Number(c.req.param("id"));
   const body = await c.req.json();
-  await db.prepare("UPDATE snippets SET is_public = ? WHERE id = ?")
-    .run(body.is_public ? 1 : 0, id);
+  await db.execute({
+    sql: "UPDATE snippets SET is_public = ? WHERE id = ?",
+    args: [body.is_public ? 1 : 0, id]
+  });
   return c.json({ ok: true });
 });
 
-// 删除片段
 admin.delete("/snippets/:id", async (c) => {
   const id = Number(c.req.param("id"));
-  await db.prepare("DELETE FROM snippets WHERE id = ?").run(id);
+  await db.execute({ sql: "DELETE FROM snippets WHERE id = ?", args: [id] });
   return c.body(null, 204);
 });
 

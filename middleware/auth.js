@@ -14,11 +14,11 @@ export const requireAuth = createMiddleware(async (c, next) => {
     return c.json({ detail: "登录已过期或无效" }, 401);
   }
 
-  const user = await db
-    .prepare(
-      "SELECT id, email, display_name, is_admin FROM users WHERE id = ?"
-    )
-    .get(userId);
+  const res = await db.execute({
+    sql: "SELECT id, email, display_name, is_admin FROM users WHERE id = ?",
+    args: [userId]
+  });
+  const user = res.rows[0];
 
   if (!user) {
     return c.json({ detail: "用户不存在" }, 401);
@@ -33,11 +33,11 @@ export const optionalAuth = createMiddleware(async (c, next) => {
   if (authHeader?.startsWith("Bearer ")) {
     const userId = verifyToken(authHeader.slice(7));
     if (userId) {
-      const user = await db
-        .prepare(
-          "SELECT id, email, display_name, is_admin FROM users WHERE id = ?"
-        )
-        .get(userId);
+      const res = await db.execute({
+        sql: "SELECT id, email, display_name, is_admin FROM users WHERE id = ?",
+        args: [userId]
+      });
+      const user = res.rows[0];
       if (user) c.set("user", user);
     }
   }

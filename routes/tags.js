@@ -5,15 +5,18 @@ const tags = new Hono();
 
 tags.get("/", async (c) => {
   const q = c.req.query("q")?.trim() || "";
-  const rows = q
-    ? await db
-        .prepare("SELECT id, name FROM tags WHERE name LIKE ? ORDER BY name LIMIT 100")
-        .all(`%${q}%`)
-    : await db
-        .prepare("SELECT id, name FROM tags ORDER BY name LIMIT 100")
-        .all();
+  let res;
+  
+  if (q) {
+    res = await db.execute({
+      sql: "SELECT id, name FROM tags WHERE name LIKE ? ORDER BY name LIMIT 100",
+      args: [`%${q}%`]
+    });
+  } else {
+    res = await db.execute("SELECT id, name FROM tags ORDER BY name LIMIT 100");
+  }
 
-  return c.json(rows);
+  return c.json(res.rows);
 });
 
 export default tags;

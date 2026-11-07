@@ -5,7 +5,6 @@ import { requireAuth } from "../middleware/auth.js";
 
 const auth = new Hono();
 
-// 注册
 auth.post("/register", async (c) => {
   const body = await c.req.json().catch(() => null);
   if (!body) return c.json({ detail: "请求格式错误" }, 400);
@@ -18,20 +17,20 @@ auth.post("/register", async (c) => {
     return c.json({ detail: "邮箱、密码（至少 6 位）、昵称均不能为空" }, 400);
   }
 
-  const existing = await db
-    .prepare("SELECT id FROM users WHERE email = ? OR display_name = ?")
-    .get(email, displayName);
-    
-  if (existing) {
+  const existingRes = await db.execute({
+    sql: "SELECT id FROM users WHERE email = ? OR display_name = ?",
+    args: [email, displayName]
+  });
+  
+  if (existingRes.rows.length > 0) {
     return c.json({ detail: "邮箱或用户名已被注册" }, 400);
   }
 
   const passwordHash = await hashPassword(password);
-  const result = await db
-    .prepare(
-      "INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)"
-    )
-    .run(email, passwordHash, displayName);
+  const result = await db.execute({
+    sql: "INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)",
+    args: [email, passwordHash, displayName]
+  });
 
   const userId = Number(result.lastInsertRowid);
   const token = signToken(userId);
@@ -46,7 +45,6 @@ auth.post("/register", async (c) => {
   );
 });
 
-// 登录 (支持用户名或邮箱)
 auth.post("/login", async (c) => {
   const body = await c.req.json().catch(() => null);
   if (!body) return c.json({ detail: "请求格式错误" }, 400);
@@ -54,11 +52,11 @@ auth.post("/login", async (c) => {
   const account = (body.account || "").trim();
   const password = body.password || "";
 
-  const user = await db
-    .prepare(
-      "SELECT id, email, password_hash, display_name, is_admin FROM users WHERE email = ? OR display_name = ?"
-    )
-    .get(account.toLowerCase(), account);
+  const res = await db.execute({
+    sql: "SELECT id, email, password_hash, display_name, is_admin FROM users WHERE email = ? OR display_name = ?",
+    args: [account.toLowerCase(), account]
+  });
+  const user = res.rows[0];
 
   if (!user || !(await verifyPassword(password, user.password_hash))) {
     return c.json({ detail: "账号或密码错误" }, 401);
@@ -78,7 +76,6 @@ auth.post("/login", async (c) => {
   });
 });
 
-// 当前用户信息
 auth.get("/me", requireAuth, (c) => {
   return c.json(c.get("user"));
 });
