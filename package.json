@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "vercel-build": "g++ -static -O3 -std=c++17 tools/cpp_stats/main.cpp -o tools/cpp_stats/cpp_stats"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",

@@ -1,0 +1,14 @@
+{
+  "totalFiles": 1069,
+  "totalLines": 136202,
+  "emptyLines": 2857,
+  "commentLines": 58459,
+  "codeLines": 74886,
+  "languages": {
+    ".cpp": 156,
+    ".css": 194,
+    ".html": 317,
+    ".js": 48261,
+    ".ts": 25958
+  }
+}

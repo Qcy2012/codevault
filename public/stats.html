@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>代码统计 - CodeVault</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: #1e293b; padding: 20px; border-radius: 8px; text-align: center; border: 1px solid #334155; }
+    .stat-value { font-size: 28px; font-weight: bold; color: #38bdf8; }
+    .stat-label { color: #94a3b8; font-size: 14px; margin-top: 8px; }
+    .chart-container { background: #1e293b; padding: 24px; border-radius: 8px; border: 1px solid #334155; max-width: 600px; margin: 0 auto; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="index.html">CodeVault</a>
+    <nav id="nav-auth"></nav>
+  </header>
+
+  <main class="container">
+    <h1>📊 本地代码统计报告</h1>
+    <p class="muted" style="margin-bottom: 24px;">此数据由本地 C++ CLI 工具 (cpp_stats) 扫描生成。</p>
+
+    <div class="stats-grid" id="summary-cards">
+      <!-- 动态填充 -->
+    </div>
+
+    <div class="chart-container">
+      <canvas id="langChart"></canvas>
+    </div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    async function loadStats() {
+      try {
+        // 请求刚刚写的后端 API，而不是静态 stats.json
+        const res = await fetch(`${API_BASE}/api/stats`);
+        const data = await res.json();
+
+        if (data.detail) throw new Error(data.detail);
+
+        // 渲染顶部卡片
+        document.getElementById('summary-cards').innerHTML = `
+          <div class="stat-card"><div class="stat-value">${data.totalFiles}</div><div class="stat-label">文件总数</div></div>
+          <div class="stat-card"><div class="stat-value">${data.totalLines}</div><div class="stat-label">总行数</div></div>
+          <div class="stat-card"><div class="stat-value">${data.codeLines}</div><div class="stat-label">代码行数</div></div>
+          <div class="stat-card"><div class="stat-value">${data.commentLines}</div><div class="stat-label">注释行数</div></div>
+        `;
+
+        // 渲染饼图
+        const ctx = document.getElementById('langChart').getContext('2d');
+        new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: Object.keys(data.languages),
+            datasets: [{
+              data: Object.values(data.languages),
+              backgroundColor: ['#38bdf8', '#10b981', '#fbbf24', '#f87171', '#a78bfa', '#f472b6'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            plugins: {
+              legend: { labels: { color: '#e2e8f0' } }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('加载统计失败，请确保 stats.json 存在于 public 目录中', err);
+      }
+    }
+    loadStats();
+  </script>
+</body>
+</html>

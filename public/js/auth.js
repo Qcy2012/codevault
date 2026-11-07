@@ -55,6 +55,7 @@ function renderNav() {
   const user = getUser();
   if (user) {
     nav.innerHTML = `
+      <a href="stats.html">代码统计</a>
       <a href="me.html">我的</a>
       ${user.is_admin ? `<a href="admin.html">管理后台</a>` : ""}
       <span>${escapeHtml(user.display_name)}</span>
