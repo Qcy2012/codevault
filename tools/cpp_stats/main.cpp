@@ -151,11 +151,19 @@ int main(int argc, char* argv[]) {
     }
 
     ProjectStats project;
-    for (const auto& entry : fs::recursive_directory_iterator(targetDir)) {
+    // 显式使用迭代器
+    for (auto it = fs::recursive_directory_iterator(targetDir); it != fs::recursive_directory_iterator(); ++it) {
+        const auto& entry = *it;
+        
         if (entry.is_directory()) {
             std::string dirName = entry.path().filename().string();
-            if (dirName == "node_modules" || dirName == ".git" || dirName == "dist") continue;
+            // 如果是这些目录，跳过并【停止递归】
+            if (dirName == "node_modules" || dirName == ".git" || dirName == "dist" || dirName == ".vercel") {
+                it.disable_recursion_pending(); // 在迭代器上调用
+                continue;
+            }
         }
+        
         if (entry.is_regular_file() && isSupportedFile(entry.path())) {
             FileStats fileStat = analyzeFile(entry.path());
             if (fileStat.totalLines == 0) continue;
