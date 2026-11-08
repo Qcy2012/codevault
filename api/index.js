@@ -33,11 +33,18 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 // 新增：调用 C++ 工具的接口
 app.get("/stats", async (c) => {
   try {
-    // 运行刚才编译出来的二进制文件，指向项目根目录 '.'
-    const { stdout } = await execPromise("./tools/cpp_stats/cpp_stats . --json");
+    const isWindows = process.platform === "win32";
+    
+    // Windows 下不要用 './'，直接写路径；并且用双引号包裹防止路径包含空格报错
+    const binaryPath = isWindows 
+      ? `"tools\\cpp_stats\\cpp_stats.exe"` 
+      : `"./tools/cpp_stats/cpp_stats"`;
+
+    // 运行二进制文件（注意参数里也统一用双引号包裹 '.'）
+    const { stdout } = await execPromise(`${binaryPath} "." --json`);
     return c.json(JSON.parse(stdout));
   } catch (error) {
-    console.error("C++ 运行失败:", error);
+    console.error("C++ 运行失败详情:", error);
     return c.json({ detail: "代码统计失败", error: error.message }, 500);
   }
 });
