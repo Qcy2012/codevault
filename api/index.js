@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { exec } from "node:child_process";
+import { chmod } from "node:fs/promises";
 import util from "node:util";
 
 const execPromise = util.promisify(exec);
@@ -11,6 +12,13 @@ import tagRoutes from "../routes/tags.js";
 import adminRoutes from "../routes/admin.js";
 
 const app = new Hono().basePath("/api");
+
+app.onError((err, c) => {
+  console.error("Vercel 后端发生崩溃:", err);
+  return c.json({ 
+    detail: `后端错误: ${err.message}` 
+  }, 500);
+});
 
 app.use("*", logger());
 app.use(
@@ -34,13 +42,19 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 app.get("/stats", async (c) => {
   try {
     const isWindows = process.platform === "win32";
-    
-    // Windows 下不要用 './'，直接写路径；并且用双引号包裹防止路径包含空格报错
     const binaryPath = isWindows 
       ? `"tools\\cpp_stats\\cpp_stats.exe"` 
       : `"./tools/cpp_stats/cpp_stats"`;
 
-    // 运行二进制文件（注意参数里也统一用双引号包裹 '.'）
+    // 生产环境下，赋予可执行权限（防止 EACCES 错误）
+    if (!isWindows) {
+      try {
+        await chmod("./tools/cpp_stats/cpp_stats", 0o755);
+      } catch (e) {
+        console.log("chmod 跳过:", e.message);
+      }
+    }
+
     const { stdout } = await execPromise(`${binaryPath} "." --json`);
     return c.json(JSON.parse(stdout));
   } catch (error) {
