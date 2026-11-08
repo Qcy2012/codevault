@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { exec } from "node:child_process";
-import { chmod } from "node:fs/promises";
+import { chmod, access } from "node:fs/promises";
+import { join } from "node:path";
+import { constants } from "node:fs";
 import util from "node:util";
 
 const execPromise = util.promisify(exec);
@@ -42,24 +44,47 @@ app.get("/health", (c) => c.json({ status: "ok" }));
 app.get("/stats", async (c) => {
   try {
     const isWindows = process.platform === "win32";
+    
+    // 明确指定 exe 文件路径
     const binaryPath = isWindows 
-      ? `"tools\\cpp_stats\\cpp_stats.exe"` 
-      : `"./tools/cpp_stats/cpp_stats"`;
+      ? join(process.cwd(), "tools", "cpp_stats", "cpp_stats.exe") 
+      : join(process.cwd(), "api", "cpp_stats");
 
-    // 生产环境下，赋予可执行权限（防止 EACCES 错误）
+    // 检查文件是否存在，避免瞎执行
+    try {
+      await access(binaryPath, constants.F_OK);
+    } catch (e) {
+      return c.json({ detail: `找不到统计工具: ${binaryPath}` }, 500);
+    }
+
+    // 赋予执行权限 (针对 Linux/Vercel)
     if (!isWindows) {
       try {
-        await chmod("./tools/cpp_stats/cpp_stats", 0o755);
+        await chmod(binaryPath, 0o755);
       } catch (e) {
         console.log("chmod 跳过:", e.message);
       }
     }
 
-    const { stdout } = await execPromise(`${binaryPath} "." --json`);
+    // 修复执行逻辑：
+    // 1. 用双引号包裹路径（防止中文路径报错）
+    // 2. 扫描根目录 "." 也要用双引号
+    // 3. Windows 下推荐使用 exec 配合 shell 执行
+    const cmd = `"${binaryPath}" "." --json`;
+    
+    const { stdout } = await execPromise(cmd, { 
+      cwd: process.cwd(), // 明确指定工作目录
+      encoding: "utf-8" 
+    });
+    
     return c.json(JSON.parse(stdout));
   } catch (error) {
     console.error("C++ 运行失败详情:", error);
-    return c.json({ detail: "代码统计失败", error: error.message }, 500);
+    return c.json({ 
+      detail: "代码统计失败", 
+      error: error.message,
+      stderr: error.stderr || ""
+    }, 500);
   }
 });
 
