@@ -99,4 +99,96 @@ function renderSnippet(snippet, root) {
   }
 }
 
-document.addEventListener("DOMContentLoaded", loadSnippet);
+// ==========================================
+// 评论功能逻辑
+// ==========================================
+
+async function loadComments(snippetId) {
+  const listEl = document.getElementById("comments-list");
+  listEl.innerHTML = `<p class="muted">加载评论中...</p>`;
+
+  try {
+    const comments = await request(`/api/snippets/${snippetId}/comments`, { auth: false });
+    const user = getUser();
+
+    if (comments.length === 0) {
+      listEl.innerHTML = `<p class="muted">暂无评论，快来抢沙发！</p>`;
+      return;
+    }
+
+    listEl.innerHTML = comments.map(c => {
+      const isOwner = user && user.id === c.user_id;
+      const isAdmin = user && user.is_admin;
+      const canDelete = isOwner || isAdmin;
+
+      return `
+        <div class="comment-item" style="border-bottom: 1px solid #334155; padding: 12px 0;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <strong style="color: #38bdf8;">${escapeHtml(c.display_name)}</strong>
+            <span class="muted" style="font-size: 12px;">${new Date(c.created_at).toLocaleString()}</span>
+          </div>
+          <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(c.content)}</p>
+          ${canDelete ? `<button onclick="deleteComment(${c.id}, ${snippetId})" style="background: none; border: none; color: #f87171; font-size: 12px; padding: 0; margin-top: 8px; cursor: pointer;">删除</button>` : ""}
+        </div>
+      `;
+    }).join("");
+  } catch (error) {
+    listEl.innerHTML = `<p class="message error">加载评论失败</p>`;
+  }
+}
+
+// 绑定发表评论事件
+function initCommentForm(snippetId) {
+  const user = getUser();
+  const formContainer = document.getElementById("comment-form-container");
+
+  if (!user) {
+    formContainer.innerHTML = `<p class="muted"><a href="login.html">登录</a> 后即可发表评论</p>`;
+    return;
+  }
+
+  const btn = document.getElementById("submit-comment-btn");
+  const input = document.getElementById("comment-input");
+
+  btn.onclick = async () => {
+    const content = input.value.trim();
+    if (!content) return alert("评论不能为空");
+
+    btn.disabled = true;
+    btn.textContent = "发送中...";
+
+    try {
+      await request(`/api/snippets/${snippetId}/comments`, {
+        method: "POST",
+        body: { content }
+      });
+      input.value = "";
+      await loadComments(snippetId);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "发送评论";
+    }
+  };
+}
+
+// 删除评论
+window.deleteComment = async (commentId, snippetId) => {
+  if (!confirm("确认删除这条评论吗？")) return;
+  try {
+    await request(`/api/snippets/comments/${commentId}`, { method: "DELETE" });
+    await loadComments(snippetId);
+  } catch (error) {
+    alert(error.message);
+  }
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  const id = getId();
+  if (id) {
+    loadComments(id);
+    initCommentForm(id);
+  }
+  loadSnippet();
+});

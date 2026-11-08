@@ -303,4 +303,69 @@ snippets.delete("/:id/favorite", requireAuth, async (c) => {
   return c.body(null, 204);
 });
 
+// ==========================================
+// 评论功能 API
+// ==========================================
+
+// 获取某个片段的评论列表
+snippets.get("/:id/comments", async (c) => {
+  const snippetId = Number(c.req.param("id"));
+  
+  const res = await db.execute({
+    sql: `SELECT c.id, c.content, c.created_at, c.user_id, u.display_name 
+          FROM comments c 
+          JOIN users u ON u.id = c.user_id 
+          WHERE c.snippet_id = ? 
+          ORDER BY c.created_at DESC`,
+    args: [snippetId]
+  });
+
+  return c.json(res.rows);
+});
+
+// 发表评论
+snippets.post("/:id/comments", requireAuth, async (c) => {
+  const snippetId = Number(c.req.param("id"));
+  const user = c.get("user");
+  const body = await c.req.json().catch(() => null);
+  
+  if (!body || !body.content || body.content.trim() === "") {
+    return c.json({ detail: "评论内容不能为空" }, 400);
+  }
+
+  // 检查片段是否存在
+  const snippet = (await db.execute({ sql: "SELECT id FROM snippets WHERE id = ?", args: [snippetId] })).rows[0];
+  if (!snippet) return c.json({ detail: "片段不存在" }, 404);
+
+  const result = await db.execute({
+    sql: "INSERT INTO comments (snippet_id, user_id, content) VALUES (?, ?, ?)",
+    args: [snippetId, user.id, body.content.trim()]
+  });
+
+  return c.json({ 
+    id: Number(result.lastInsertRowid), 
+    content: body.content.trim(),
+    user_id: user.id,
+    display_name: user.display_name,
+    created_at: new Date().toISOString()
+  }, 201);
+});
+
+// 删除评论
+snippets.delete("/comments/:commentId", requireAuth, async (c) => {
+  const commentId = Number(c.req.param("commentId"));
+  const user = c.get("user");
+
+  const comment = (await db.execute({ sql: "SELECT user_id FROM comments WHERE id = ?", args: [commentId] })).rows[0];
+  if (!comment) return c.json({ detail: "评论不存在" }, 404);
+  
+  // 只有评论作者或管理员可以删除
+  if (comment.user_id !== user.id && !user.is_admin) {
+    return c.json({ detail: "无权删除此评论" }, 403);
+  }
+
+  await db.execute({ sql: "DELETE FROM comments WHERE id = ?", args: [commentId] });
+  return c.body(null, 204);
+});
+
 export default snippets;

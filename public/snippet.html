@@ -15,6 +15,20 @@
 
   <main class="container">
     <div id="detail"></div>
+    
+    <!-- 评论区 -->
+    <section id="comments-section" class="card" style="margin-top: 24px;">
+      <h3>💬 评论</h3>
+      
+      <!-- 发表评论 -->
+      <div id="comment-form-container" style="margin-bottom: 24px;">
+        <textarea id="comment-input" rows="3" placeholder="留下你的高见..." style="width: 100%; margin-bottom: 8px;"></textarea>
+        <button id="submit-comment-btn">发送评论</button>
+      </div>
+      
+      <!-- 评论列表 -->
+      <div id="comments-list"></div>
+    </section>
   </main>
 
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.10.0/build/highlight.min.js"></script>
