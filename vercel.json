@@ -1,9 +1,4 @@
 {
   "buildCommand": "npm run vercel-build",
-  "outputDirectory": "public",
-  "functions": {
-    "api/index.js": {
-      "includeFiles": "api/cpp_stats"
-    }
-  }
+  "outputDirectory": "public"
 }
