@@ -5,6 +5,8 @@ import { exec } from "node:child_process";
 import { chmod, access } from "node:fs/promises";
 import { join } from "node:path";
 import { constants } from "node:fs";
+import { spawn } from "node:child_process";
+import { db } from "../db/index.js"; // 引入数据库
 import util from "node:util";
 
 const execPromise = util.promisify(exec);
@@ -40,51 +42,73 @@ app.route("/admin", adminRoutes);
 
 app.get("/health", (c) => c.json({ status: "ok" }));
 
-// 新增：调用 C++ 工具的接口
+// 提取出一个 Promise，保证等待 C++ 运行结束
+function runCppStats(binaryPath, snippets) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(binaryPath);
+    let outputData = "";
+    let errorData = "";
+
+    child.stdout.on("data", (data) => { outputData += data.toString(); });
+    child.stderr.on("data", (data) => { errorData += data.toString(); });
+
+    // 如果找不到 exe 文件，会触发 error
+    child.on("error", (err) => {
+      reject(new Error(`无法启动 C++ 程序: ${err.message}`));
+    });
+
+    // 进程结束
+    child.on("close", (code) => {
+      if (code !== 0) {
+        return reject(new Error(`C++ 进程退出码 ${code}。错误信息: ${errorData}`));
+      }
+      try {
+        resolve(JSON.parse(outputData));
+      } catch (e) {
+        reject(new Error(`C++ 输出的不是合法 JSON: ${outputData}`));
+      }
+    });
+
+    // 喂数据
+    for (const row of snippets) {
+      child.stdin.write(`LANG:${row.language}\n`);
+      child.stdin.write(`CODE_START\n`);
+      child.stdin.write(`${row.code}\n`);
+      child.stdin.write(`CODE_END\n`);
+    }
+    child.stdin.end();
+  });
+}
+
 app.get("/stats", async (c) => {
   try {
+    const res = await db.execute("SELECT language, code FROM snippets WHERE is_public = 1");
+    const snippets = res.rows;
+
+    // 加一行日志，看看数据库查出来没有
+    console.log(`📊 准备发送 ${snippets.length} 个片段给 C++ 分析`);
+
+    if (snippets.length === 0) {
+      return c.json({ detail: "当前没有可统计的公开片段" }, 400);
+    }
+
     const isWindows = process.platform === "win32";
-    
-    // 明确指定 exe 文件路径
     const binaryPath = isWindows 
       ? join(process.cwd(), "tools", "cpp_stats", "cpp_stats.exe") 
       : join(process.cwd(), "api", "cpp_stats");
 
-    // 检查文件是否存在，避免瞎执行
-    try {
-      await access(binaryPath, constants.F_OK);
-    } catch (e) {
-      return c.json({ detail: `找不到统计工具: ${binaryPath}` }, 500);
-    }
+    // 加一行日志，看看路径对不对
+    console.log(`🔧 正在启动 C++ 进程: ${binaryPath}`);
 
-    // 赋予执行权限 (针对 Linux/Vercel)
-    if (!isWindows) {
-      try {
-        await chmod(binaryPath, 0o755);
-      } catch (e) {
-        console.log("chmod 跳过:", e.message);
-      }
-    }
+    const stats = await runCppStats(binaryPath, snippets);
+    
+    // 加一行日志，看看 C++ 算出来了什么
+    console.log(`✅ C++ 分析完成:`, stats);
 
-    // 修复执行逻辑：
-    // 1. 用双引号包裹路径（防止中文路径报错）
-    // 2. 扫描根目录 "." 也要用双引号
-    // 3. Windows 下推荐使用 exec 配合 shell 执行
-    const cmd = `"${binaryPath}" "." --json`;
-    
-    const { stdout } = await execPromise(cmd, { 
-      cwd: process.cwd(), // 明确指定工作目录
-      encoding: "utf-8" 
-    });
-    
-    return c.json(JSON.parse(stdout));
+    return c.json(stats);
   } catch (error) {
-    console.error("C++ 运行失败详情:", error);
-    return c.json({ 
-      detail: "代码统计失败", 
-      error: error.message,
-      stderr: error.stderr || ""
-    }, 500);
+    console.error("统计失败:", error);
+    return c.json({ detail: "统计失败", error: error.message }, 500);
   }
 });
 

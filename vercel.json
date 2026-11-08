@@ -3,7 +3,7 @@
   "outputDirectory": "public",
   "functions": {
     "api/index.js": {
-      "includeFiles": "{public/**,tools/**}"
+      "includeFiles": "api/cpp_stats"
     }
   }
 }
