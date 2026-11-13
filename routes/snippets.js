@@ -61,6 +61,90 @@ async function getOrCreateTags(names) {
   return tags;
 }
 
+// ==========================================
+// 评论功能 API (必须放在 /:id 路由之前)
+// ==========================================
+
+// 获取评论列表
+snippets.get("/:id/comments", async (c) => {
+  const snippetId = Number(c.req.param("id"));
+  
+  const res = await db.execute({
+    sql: `SELECT c.id, c.content, c.created_at, c.user_id, u.display_name 
+          FROM comments c 
+          JOIN users u ON u.id = c.user_id 
+          WHERE c.snippet_id = ? 
+          ORDER BY c.created_at DESC`,
+    args: [snippetId]
+  });
+
+  const comments = res.rows.map(row => {
+    // 强制将 SQLite 的 "YYYY-MM-DD HH:MM:SS" 转为带 Z 的标准 ISO 时间
+    let isoTime = new Date().toISOString();
+    if (row.created_at) {
+      let timeStr = row.created_at.includes('T') ? row.created_at : row.created_at.replace(' ', 'T');
+      if (!timeStr.endsWith('Z')) timeStr += 'Z';
+      isoTime = timeStr;
+    }
+    return {
+      id: Number(row.id),
+      content: row.content,
+      created_at: isoTime,
+      user_id: Number(row.user_id),
+      display_name: row.display_name
+    };
+  });
+
+  return c.json(comments);
+});
+
+// 发表评论
+snippets.post("/:id/comments", requireAuth, async (c) => {
+  const snippetId = Number(c.req.param("id"));
+  const user = c.get("user");
+  const body = await c.req.json().catch(() => null);
+  
+  if (!body || !body.content || body.content.trim() === "") {
+    return c.json({ detail: "评论内容不能为空" }, 400);
+  }
+
+  const snippet = (await db.execute({ sql: "SELECT id FROM snippets WHERE id = ?", args: [snippetId] })).rows[0];
+  if (!snippet) return c.json({ detail: "片段不存在" }, 404);
+
+  const result = await db.execute({
+    sql: "INSERT INTO comments (snippet_id, user_id, content) VALUES (?, ?, ?)",
+    args: [snippetId, user.id, body.content.trim()]
+  });
+
+  return c.json({ 
+    id: Number(result.lastInsertRowid), 
+    content: body.content.trim(),
+    user_id: Number(user.id),
+    display_name: user.display_name,
+    created_at: new Date().toISOString()
+  }, 201);
+});
+
+// 删除评论
+snippets.delete("/comments/:commentId", requireAuth, async (c) => {
+  const commentId = Number(c.req.param("commentId"));
+  const user = c.get("user");
+
+  const comment = (await db.execute({ sql: "SELECT user_id FROM comments WHERE id = ?", args: [commentId] })).rows[0];
+  if (!comment) return c.json({ detail: "评论不存在" }, 404);
+  
+  if (Number(comment.user_id) !== Number(user.id) && !user.is_admin) {
+    return c.json({ detail: "无权删除此评论" }, 403);
+  }
+
+  await db.execute({ sql: "DELETE FROM comments WHERE id = ?", args: [commentId] });
+  return c.body(null, 204);
+});
+
+// ==========================================
+// 片段操作 API
+// ==========================================
+
 snippets.get("/", optionalAuth, async (c) => {
   const q = c.req.query("q")?.trim() || "";
   const language = c.req.query("language") || "";
@@ -300,71 +384,6 @@ snippets.delete("/:id/favorite", requireAuth, async (c) => {
     args: [current.id, id]
   });
 
-  return c.body(null, 204);
-});
-
-// ==========================================
-// 评论功能 API
-// ==========================================
-
-// 获取某个片段的评论列表
-snippets.get("/:id/comments", async (c) => {
-  const snippetId = Number(c.req.param("id"));
-  
-  const res = await db.execute({
-    sql: `SELECT c.id, c.content, c.created_at, c.user_id, u.display_name 
-          FROM comments c 
-          JOIN users u ON u.id = c.user_id 
-          WHERE c.snippet_id = ? 
-          ORDER BY c.created_at DESC`,
-    args: [snippetId]
-  });
-
-  return c.json(res.rows);
-});
-
-// 发表评论
-snippets.post("/:id/comments", requireAuth, async (c) => {
-  const snippetId = Number(c.req.param("id"));
-  const user = c.get("user");
-  const body = await c.req.json().catch(() => null);
-  
-  if (!body || !body.content || body.content.trim() === "") {
-    return c.json({ detail: "评论内容不能为空" }, 400);
-  }
-
-  // 检查片段是否存在
-  const snippet = (await db.execute({ sql: "SELECT id FROM snippets WHERE id = ?", args: [snippetId] })).rows[0];
-  if (!snippet) return c.json({ detail: "片段不存在" }, 404);
-
-  const result = await db.execute({
-    sql: "INSERT INTO comments (snippet_id, user_id, content) VALUES (?, ?, ?)",
-    args: [snippetId, user.id, body.content.trim()]
-  });
-
-  return c.json({ 
-    id: Number(result.lastInsertRowid), 
-    content: body.content.trim(),
-    user_id: user.id,
-    display_name: user.display_name,
-    created_at: new Date().toISOString()
-  }, 201);
-});
-
-// 删除评论
-snippets.delete("/comments/:commentId", requireAuth, async (c) => {
-  const commentId = Number(c.req.param("commentId"));
-  const user = c.get("user");
-
-  const comment = (await db.execute({ sql: "SELECT user_id FROM comments WHERE id = ?", args: [commentId] })).rows[0];
-  if (!comment) return c.json({ detail: "评论不存在" }, 404);
-  
-  // 只有评论作者或管理员可以删除
-  if (comment.user_id !== user.id && !user.is_admin) {
-    return c.json({ detail: "无权删除此评论" }, 403);
-  }
-
-  await db.execute({ sql: "DELETE FROM comments WHERE id = ?", args: [commentId] });
   return c.body(null, 204);
 });
 

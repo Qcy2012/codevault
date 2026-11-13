@@ -55,14 +55,31 @@ function renderSnippet(snippet, root) {
         ${isOwner ? `<a class="button" href="edit.html?id=${snippet.id}">编辑</a><button id="del-btn" class="danger">删除</button>` : ""}
       </div>
       ${descHtml ? `<section class="markdown">${descHtml}</section>` : ""}
-      <pre><code id="code" class="hljs language-${highlightLanguage(snippet.language)}"></code></pre>
-      <button id="copy-btn">复制代码</button>
+      
+      <pre id="code-pre" style="background: #020617; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 16px 0;"><code id="code" class="hljs language-${highlightLanguage(snippet.language)}"></code></pre>
+      
+      <button id="copy-btn" style="margin-top: 12px;">复制代码</button>
     </article>
   `;
 
   const codeEl = document.getElementById("code");
   codeEl.textContent = snippet.code;
   hljs.highlightElement(codeEl);
+
+  const preEl = document.getElementById("code-pre");
+  preEl.style.setProperty("font-family", "'Consolas', 'Cascadia Code', 'Courier New', monospace", "important");
+  preEl.style.setProperty("font-size", "16px", "important");
+  preEl.style.setProperty("line-height", "1.6", "important");
+
+  codeEl.style.setProperty("font-family", "'Consolas', 'Cascadia Code', 'Courier New', monospace", "important");
+  codeEl.style.setProperty("font-size", "16px", "important");
+  codeEl.style.setProperty("line-height", "1.6", "important");
+
+  codeEl.querySelectorAll("*").forEach(child => {
+    child.style.setProperty("font-family", "'Consolas', 'Cascadia Code', 'Courier New', monospace", "important");
+    child.style.setProperty("font-size", "16px", "important");
+    child.style.setProperty("line-height", "1.6", "important");
+  });
 
   document.getElementById("copy-btn").onclick = async () => {
     try {
@@ -112,7 +129,7 @@ async function loadComments(snippetId) {
     const user = getUser();
 
     if (comments.length === 0) {
-      listEl.innerHTML = `<p class="muted">暂无评论，快来抢首评！</p>`;
+      listEl.innerHTML = `<p class="muted">暂无评论，快来抢沙发！</p>`;
       return;
     }
 
@@ -121,18 +138,13 @@ async function loadComments(snippetId) {
       const isAdmin = user && user.is_admin;
       const canDelete = isOwner || isAdmin;
 
-      // 修复时区：把 SQLite 的时间加上 'T' 和 'Z'，变成标准 ISO 格式
-      let displayTime = "";
-      if (c.created_at) {
-        const isoString = c.created_at.replace(' ', 'T') + 'Z';
-        displayTime = new Date(isoString).toLocaleString('zh-CN', { hour12: false });
-      }
+      // 后端现在返回的是标准的 ISO 字符串，直接使用即可
+      const displayTime = c.created_at ? new Date(c.created_at).toLocaleString('zh-CN', { hour12: false }) : '';
 
       return `
         <div class="comment-item" style="border-bottom: 1px solid #334155; padding: 12px 0;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
             <strong style="color: #38bdf8;">${escapeHtml(c.display_name)}</strong>
-            <!-- 这里换成 displayTime 变量 -->
             <span class="muted" style="font-size: 12px;">${displayTime}</span>
           </div>
           <p style="margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.5;">${escapeHtml(c.content)}</p>
@@ -141,11 +153,11 @@ async function loadComments(snippetId) {
       `;
     }).join("");
   } catch (error) {
-    listEl.innerHTML = `<p class="message error">加载评论失败</p>`;
+    console.error("获取评论报错详情:", error);
+    listEl.innerHTML = `<p class="message error">加载评论失败: ${escapeHtml(error.message)}</p>`;
   }
 }
 
-// 绑定发表评论事件
 function initCommentForm(snippetId) {
   const user = getUser();
   const formContainer = document.getElementById("comment-form-container");
@@ -181,7 +193,6 @@ function initCommentForm(snippetId) {
   };
 }
 
-// 删除评论
 window.deleteComment = async (commentId, snippetId) => {
   if (!confirm("确认删除这条评论吗？")) return;
   try {
