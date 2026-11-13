@@ -46,11 +46,14 @@ function renderSnippet(snippet, root) {
       <div class="meta">
         <span class="lang">${escapeHtml(snippet.language)}</span>
         ${tags}
-        <span>${escapeHtml(snippet.owner.display_name)}</span>
+        <a href="user.html?id=${snippet.owner.id}" style="color: var(--text-color); font-weight: bold;">👤 ${escapeHtml(snippet.owner.display_name)}</a>
         <span>${new Date(snippet.created_at).toLocaleString('zh-CN', { hour12: false })}</span>
         <span>浏览 ${snippet.view_count}</span>
       </div>
       <div class="actions">
+        <button id="like-btn" class="${snippet.is_liked ? 'danger' : ''}" style="${snippet.is_liked ? '' : 'background: linear-gradient(180deg, #10b981 0%, #059669 100%); border-color: #047857;'}">
+          👍 ${snippet.is_liked ? '已赞' : '点赞'} (<span id="like-count">${snippet.likes_count}</span>)
+        </button>
         ${user ? `<button id="fav-btn">收藏</button>` : `<a class="button" href="login.html">登录后收藏</a>`}
         ${isOwner ? `<a class="button" href="edit.html?id=${snippet.id}">编辑</a><button id="del-btn" class="danger">删除</button>` : ""}
       </div>
@@ -113,6 +116,29 @@ function renderSnippet(snippet, root) {
         location.href = "index.html";
       } catch (error) {
         showAlert(error.message);
+      }
+    };
+  }
+
+  const likeBtn = document.getElementById("like-btn");
+  if (likeBtn && user) {
+    likeBtn.onclick = async () => {
+      try {
+        const res = await request(`/api/snippets/${snippet.id}/like`, { method: "POST" });
+        const countEl = document.getElementById("like-count");
+        let count = parseInt(countEl.textContent);
+        
+        if (res.liked) {
+          likeBtn.style.background = "linear-gradient(180deg, #ef4444 0%, #dc2626 100%)";
+          likeBtn.style.borderColor = "#b91c1c";
+          likeBtn.innerHTML = `👍 已赞 (<span id="like-count">${count + 1}</span>)`;
+        } else {
+          likeBtn.style.background = "linear-gradient(180deg, #10b981 0%, #059669 100%)";
+          likeBtn.style.borderColor = "#047857";
+          likeBtn.innerHTML = `👍 点赞 (<span id="like-count">${count - 1}</span>)`;
+        }
+      } catch (e) {
+        showAlert(e.message);
       }
     };
   }

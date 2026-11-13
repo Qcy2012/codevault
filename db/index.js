@@ -1,5 +1,5 @@
 // db/index.js
-import { createClient } from "@libsql/client";
+import { connect } from "@libsql/client";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -13,15 +13,11 @@ if (isProduction) {
   }
   const url = process.env.TURSO_DATABASE_URL.replace("libsql://", "https://").trim();
   const token = process.env.TURSO_AUTH_TOKEN.trim();
-  db = createClient({ url, authToken: token });
-  console.log("Connected to Turso Cloud via @libsql/client/web");
+  db = connect({ url, authToken: token });
 } else {
-  // 本地开发环境：直接读取本地文件
-  db = createClient({ url: `file:${join(__dirname, "codevault.db")}` });
-  console.log("Connected to local SQLite database via @libsql/client");
+  db = connect({ url: `file:${join(__dirname, "codevault.db")}` });
 }
 
-// 自动建表逻辑（本地和线上都运行）
 const schema = `
 CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,6 +60,12 @@ CREATE TABLE IF NOT EXISTS comments (
     user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     content    TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS likes (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    snippet_id INTEGER NOT NULL REFERENCES snippets(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, snippet_id)
 );
 `;
 

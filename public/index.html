@@ -1,6 +1,8 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
 <head>
+  <script>
+    // 防止主题闪烁
+    document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CodeVault - 代码片段</title>
@@ -12,29 +14,42 @@
     <nav id="nav-auth"></nav>
   </header>
 
-  <main class="container">
-    <section class="toolbar card">
-      <input id="search" type="search" placeholder="搜索标题、说明、代码...">
-      <select id="language">
-        <option value="">全部语言</option>
-        <option value="cpp">C++</option>
-        <option value="python">Python</option>
-        <option value="javascript">JavaScript</option>
-        <option value="html">HTML</option>
-        <option value="css">CSS</option>
-        <option value="other">其他</option>
-      </select>
-      <select id="scope">
-        <option value="public">公开片段</option>
-        <option value="mine">我的片段</option>
-        <option value="favorites">我的收藏</option>
-      </select>
-      <a class="button" href="edit.html">+ 发布片段</a>
-    </section>
+  <main class="container" style="display: flex; gap: 24px; align-items: flex-start;">
+    <!-- 左侧主要内容 -->
+    <div style="flex: 1; min-width: 0;">
+      <section class="toolbar card">
+        <input id="search" type="search" placeholder="搜索标题、说明、代码...">
+        <select id="language">
+          <option value="">全部语言</option>
+          <option value="cpp">C++</option>
+          <option value="python">Python</option>
+          <option value="javascript">JavaScript</option>
+          <option value="html">HTML</option>
+          <option value="css">CSS</option>
+          <option value="other">其他</option>
+        </select>
+        <select id="scope">
+          <option value="public">公开片段</option>
+          <option value="mine">我的片段</option>
+          <option value="favorites">我的收藏</option>
+        </select>
+        <a class="button" href="edit.html">+ 发布片段</a>
+      </section>
 
-    <section id="list" class="list"></section>
-    <div id="pager" class="pager"></div>
-    <p id="empty" class="empty hidden">暂无片段</p>
+      <section id="list" class="list"></section>
+      <div id="pager" class="pager"></div>
+      <p id="empty" class="empty hidden">暂无片段</p>
+    </div>
+
+    <!-- 右侧排行榜 -->
+    <aside style="width: 280px; flex-shrink: 0;">
+      <div class="card">
+        <h3 style="margin-bottom: 16px; font-size: 16px;">🏆 极客排行榜</h3>
+        <div id="ranking-list" class="list">
+          <p class="muted">加载中...</p>
+        </div>
+      </div>
+    </aside>
   </main>
 
   <script src="js/config.js"></script>

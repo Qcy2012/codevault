@@ -1,27 +1,24 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { exec } from "node:child_process";
-import { chmod, access } from "node:fs/promises";
-import { join } from "node:path";
-import { constants } from "node:fs";
 import { spawn } from "node:child_process";
-import { db } from "../db/index.js"; // 引入数据库
-import util from "node:util";
+import { join } from "node:path";
+import { chmod, access } from "node:fs/promises";
+import { constants } from "node:fs";
+import { db } from "../db/index.js";
 
-const execPromise = util.promisify(exec);
 import authRoutes from "../routes/auth.js";
 import snippetRoutes from "../routes/snippets.js";
 import tagRoutes from "../routes/tags.js";
 import adminRoutes from "../routes/admin.js";
+import userRoutes from "../routes/users.js";
 
 const app = new Hono().basePath("/api");
 
+// 全局错误拦截，防止 Cloud 端返回 HTML 500 页面导致前端 JSON 解析崩溃
 app.onError((err, c) => {
-  console.error("Vercel 后端发生崩溃:", err);
-  return c.json({ 
-    detail: `后端错误: ${err.message}` 
-  }, 500);
+  console.error("💥 后端发生错误:", err);
+  return c.json({ detail: `服务器内部错误: ${err.message}` }, 500);
 });
 
 app.use("*", logger());
@@ -34,15 +31,19 @@ app.use(
   })
 );
 
-// 因为前面设置了 basePath("/api")，这里直接写 "/auth" 即可
+// 挂载各模块路由
 app.route("/auth", authRoutes);
 app.route("/snippets", snippetRoutes);
 app.route("/tags", tagRoutes);
 app.route("/admin", adminRoutes);
+app.route("/users", userRoutes);
 
+// 健康检查
 app.get("/health", (c) => c.json({ status: "ok" }));
 
-// 提取出一个 Promise，保证等待 C++ 运行结束
+// ==========================================
+// C++ 统计引擎接口
+// ==========================================
 function runCppStats(binaryPath, snippets) {
   return new Promise((resolve, reject) => {
     const child = spawn(binaryPath);
@@ -52,12 +53,10 @@ function runCppStats(binaryPath, snippets) {
     child.stdout.on("data", (data) => { outputData += data.toString(); });
     child.stderr.on("data", (data) => { errorData += data.toString(); });
 
-    // 如果找不到 exe 文件，会触发 error
     child.on("error", (err) => {
       reject(new Error(`无法启动 C++ 程序: ${err.message}`));
     });
 
-    // 进程结束
     child.on("close", (code) => {
       if (code !== 0) {
         return reject(new Error(`C++ 进程退出码 ${code}。错误信息: ${errorData}`));
@@ -69,7 +68,6 @@ function runCppStats(binaryPath, snippets) {
       }
     });
 
-    // 喂数据
     for (const row of snippets) {
       child.stdin.write(`LANG:${row.language}\n`);
       child.stdin.write(`CODE_START\n`);
@@ -82,11 +80,9 @@ function runCppStats(binaryPath, snippets) {
 
 app.get("/stats", async (c) => {
   try {
+    // 1. 从 Turso 数据库查询公开代码
     const res = await db.execute("SELECT language, code FROM snippets WHERE is_public = 1");
     const snippets = res.rows;
-
-    // 加一行日志，看看数据库查出来没有
-    console.log(`📊 准备发送 ${snippets.length} 个片段给 C++ 分析`);
 
     if (snippets.length === 0) {
       return c.json({ detail: "当前没有可统计的公开片段" }, 400);
@@ -97,20 +93,22 @@ app.get("/stats", async (c) => {
       ? join(process.cwd(), "tools", "cpp_stats", "cpp_stats.exe") 
       : join(process.cwd(), "api", "cpp_stats");
 
-    // 加一行日志，看看路径对不对
-    console.log(`🔧 正在启动 C++ 进程: ${binaryPath}`);
+    if (!isWindows) {
+      try {
+        await access(binaryPath, constants.F_OK);
+        await chmod(binaryPath, 0o755);
+      } catch (e) {
+        console.log("云端 C++ 权限或路径检查跳过:", e.message);
+      }
+    }
 
     const stats = await runCppStats(binaryPath, snippets);
-    
-    // 加一行日志，看看 C++ 算出来了什么
-    console.log(`✅ C++ 分析完成:`, stats);
-
     return c.json(stats);
+
   } catch (error) {
     console.error("统计失败:", error);
     return c.json({ detail: "统计失败", error: error.message }, 500);
   }
 });
 
-// 直接导出 Hono 实例给 Vercel
 export default app;

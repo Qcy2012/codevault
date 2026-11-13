@@ -1,11 +1,4 @@
-const state = {
-  page: 1,
-  pageSize: 10,
-  q: "",
-  language: "",
-  scope: "public",
-  tag: "",
-};
+const state = { page: 1, pageSize: 10, q: "", language: "", scope: "public", tag: "" };
 
 async function loadList() {
   const listEl = document.getElementById("list");
@@ -14,12 +7,7 @@ async function loadList() {
 
   try {
     const data = await snippetApi.list({
-      q: state.q,
-      language: state.language,
-      scope: state.scope,
-      tag: state.tag,
-      page: state.page,
-      page_size: state.pageSize,
+      q: state.q, language: state.language, scope: state.scope, tag: state.tag, page: state.page, page_size: state.pageSize,
     });
 
     if (!data.items.length) {
@@ -36,9 +24,7 @@ async function loadList() {
 }
 
 function renderCard(snippet) {
-  const tags = snippet.tags
-    .map((tag) => `<span class="tag">${escapeHtml(tag.name)}</span>`)
-    .join("");
+  const tags = snippet.tags.map((tag) => `<span class="tag">${escapeHtml(tag.name)}</span>`).join("");
 
   return `
     <article class="card snippet-card">
@@ -46,10 +32,12 @@ function renderCard(snippet) {
       <div class="meta">
         <span class="lang">${escapeHtml(snippet.language)}</span>
         ${tags}
-        <span>${escapeHtml(snippet.owner.display_name)}</span>
+        <a href="user.html?id=${snippet.owner.id}" style="color: var(--muted);">👤 ${escapeHtml(snippet.owner.display_name)}</a>
         <span>${new Date(snippet.created_at).toLocaleString('zh-CN', { hour12: false })}</span>
       </div>
-      <p class="muted">${snippet.is_public ? "公开" : "私有"} · 浏览 ${snippet.view_count}</p>
+      <p class="muted" style="font-size: 13px; margin-top: 8px;">
+        ${snippet.is_public ? "公开" : "私有"} · 👍 ${snippet.likes_count} · 浏览 ${snippet.view_count}
+      </p>
     </article>
   `;
 }
@@ -62,14 +50,30 @@ function renderPager(total, page, pageSize) {
     <span>第 ${page} / ${pages} 页，共 ${total} 条</span>
     <button id="next" ${page >= pages ? "disabled" : ""}>下一页</button>
   `;
-  document.getElementById("prev").onclick = () => {
-    state.page -= 1;
-    loadList();
-  };
-  document.getElementById("next").onclick = () => {
-    state.page += 1;
-    loadList();
-  };
+  document.getElementById("prev").onclick = () => { state.page -= 1; loadList(); };
+  document.getElementById("next").onclick = () => { state.page += 1; loadList(); };
+}
+
+async function loadRanking() {
+  const rankEl = document.getElementById("ranking-list");
+  try {
+    const res = await request("/api/users/ranking", { auth: false });
+    if (!res.length) {
+      rankEl.innerHTML = `<p class="muted">暂无数据</p>`;
+      return;
+    }
+    rankEl.innerHTML = res.map((u, i) => `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border-color);">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="font-weight: bold; color: ${i < 3 ? '#fbbf24' : 'var(--muted)'};">#${i + 1}</span>
+          <a href="user.html?id=${u.id}">${escapeHtml(u.display_name)}</a>
+        </div>
+        <span class="muted" style="font-size: 12px;">👍 ${u.total_likes} · 📝 ${u.snippet_count}</span>
+      </div>
+    `).join("");
+  } catch (error) {
+    rankEl.innerHTML = `<p class="message error">加载失败</p>`;
+  }
 }
 
 function initIndex() {
@@ -80,30 +84,16 @@ function initIndex() {
   let timer;
   search.addEventListener("input", () => {
     clearTimeout(timer);
-    timer = setTimeout(() => {
-      state.q = search.value.trim();
-      state.page = 1;
-      loadList();
-    }, 300);
+    timer = setTimeout(() => { state.q = search.value.trim(); state.page = 1; loadList(); }, 300);
   });
-
-  language.addEventListener("change", () => {
-    state.language = language.value;
-    state.page = 1;
-    loadList();
-  });
-
+  language.addEventListener("change", () => { state.language = language.value; state.page = 1; loadList(); });
   scope.addEventListener("change", () => {
-    if (scope.value !== "public" && !getUser()) {
-      location.href = "login.html";
-      return;
-    }
-    state.scope = scope.value;
-    state.page = 1;
-    loadList();
+    if (scope.value !== "public" && !getUser()) { location.href = "login.html"; return; }
+    state.scope = scope.value; state.page = 1; loadList();
   });
 
   loadList();
+  loadRanking();
 }
 
 document.addEventListener("DOMContentLoaded", initIndex);

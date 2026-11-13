@@ -1,10 +1,56 @@
+// 初始化主题
+function initTheme() {
+  const savedTheme = localStorage.getItem("theme") || "dark";
+  document.documentElement.setAttribute("data-theme", savedTheme);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme");
+  const next = current === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("theme", next);
+  
+  const icon = document.getElementById("theme-toggle");
+  if (icon) icon.textContent = next === "dark" ? "🌙" : "☀️";
+}
+
+function renderNav() {
+  initTheme();
+  const nav = document.getElementById("nav-auth");
+  if (!nav) return;
+
+  const user = getUser();
+  if (user) {
+    nav.innerHTML = `
+      <a href="me.html">我的</a>
+      ${user.is_admin ? `<a href="admin.html">管理后台</a>` : ""}
+      <span>${escapeHtml(user.display_name)}</span>
+      <a href="#" id="logout-link">退出</a>
+    `;
+    document.getElementById("logout-link").addEventListener("click", (event) => {
+      event.preventDefault();
+      clearAuth();
+      location.href = "index.html";
+    });
+  } else {
+    nav.innerHTML = `<a href="login.html">登录</a> <a href="register.html">注册</a>`;
+  }
+
+  // 注入主题切换按钮
+  const currentTheme = document.documentElement.getAttribute("data-theme");
+  const themeBtn = document.createElement("button");
+  themeBtn.id = "theme-toggle";
+  themeBtn.className = "btn-cancel";
+  themeBtn.style.padding = "6px 12px";
+  themeBtn.style.marginLeft = "8px";
+  themeBtn.textContent = currentTheme === "dark" ? "🌙" : "☀️";
+  themeBtn.onclick = toggleTheme;
+  nav.appendChild(themeBtn);
+}
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[char]));
 }
 
@@ -45,33 +91,6 @@ async function handleRegister(event) {
     location.href = "index.html";
   } catch (error) {
     showMessage(msg, error.message);
-  }
-}
-
-function renderNav() {
-  const nav = document.getElementById("nav-auth");
-  if (!nav) return;
-
-  const user = getUser();
-  if (user) {
-    nav.innerHTML = `
-      <a href="stats.html">代码统计</a>
-      <a href="me.html">我的</a>
-      ${user.is_admin ? `<a href="admin.html">管理后台</a>` : ""}
-      <span>${escapeHtml(user.display_name)}</span>
-      <a href="#" id="logout-link">退出</a>
-    `;
-
-    document.getElementById("logout-link").addEventListener("click", (event) => {
-      event.preventDefault();
-      clearAuth();
-      location.href = "index.html";
-    });
-  } else {
-    nav.innerHTML = `
-      <a href="login.html">登录</a> 
-      <a href="register.html">注册</a>
-    `;
   }
 }
 

@@ -4,7 +4,6 @@ import { requireAuth, optionalAuth } from "../middleware/auth.js";
 
 const snippets = new Hono();
 
-// 新增时间标准化函数
 function normalizeTime(timeStr) {
   if (!timeStr) return null;
   let t = timeStr.includes('T') ? timeStr : timeStr.replace(' ', 'T');
@@ -21,12 +20,11 @@ function rowToSnippet(row, tags = []) {
     code: row.code,
     is_public: Boolean(row.is_public),
     view_count: row.view_count,
-    created_at: normalizeTime(row.created_at), // 处理创建时间
-    updated_at: normalizeTime(row.updated_at), // 处理更新时间
-    owner: {
-      id: row.user_id,
-      display_name: row.display_name,
-    },
+    likes_count: Number(row.likes_count || 0),
+    is_liked: Boolean(row.is_liked),
+    created_at: normalizeTime(row.created_at),
+    updated_at: normalizeTime(row.updated_at),
+    owner: { id: row.user_id, display_name: row.display_name },
     tags: tags.map((t) => ({ id: t.id, name: t.name })),
   };
 }
@@ -69,90 +67,52 @@ async function getOrCreateTags(names) {
   return tags;
 }
 
-// ==========================================
-// 评论功能 API (必须放在 /:id 路由之前)
-// ==========================================
-
-// 获取评论列表
+// 评论接口
 snippets.get("/:id/comments", async (c) => {
   const snippetId = Number(c.req.param("id"));
-  
   const res = await db.execute({
     sql: `SELECT c.id, c.content, c.created_at, c.user_id, u.display_name 
-          FROM comments c 
-          JOIN users u ON u.id = c.user_id 
-          WHERE c.snippet_id = ? 
-          ORDER BY c.created_at DESC`,
+          FROM comments c JOIN users u ON u.id = c.user_id 
+          WHERE c.snippet_id = ? ORDER BY c.created_at DESC`,
     args: [snippetId]
   });
-
   const comments = res.rows.map(row => {
-    // 强制将 SQLite 的 "YYYY-MM-DD HH:MM:SS" 转为带 Z 的标准 ISO 时间
     let isoTime = new Date().toISOString();
     if (row.created_at) {
       let timeStr = row.created_at.includes('T') ? row.created_at : row.created_at.replace(' ', 'T');
       if (!timeStr.endsWith('Z')) timeStr += 'Z';
       isoTime = timeStr;
     }
-    return {
-      id: Number(row.id),
-      content: row.content,
-      created_at: isoTime,
-      user_id: Number(row.user_id),
-      display_name: row.display_name
-    };
+    return { id: Number(row.id), content: row.content, created_at: isoTime, user_id: Number(row.user_id), display_name: row.display_name };
   });
-
   return c.json(comments);
 });
 
-// 发表评论
 snippets.post("/:id/comments", requireAuth, async (c) => {
   const snippetId = Number(c.req.param("id"));
   const user = c.get("user");
   const body = await c.req.json().catch(() => null);
-  
-  if (!body || !body.content || body.content.trim() === "") {
-    return c.json({ detail: "评论内容不能为空" }, 400);
-  }
-
+  if (!body || !body.content || body.content.trim() === "") return c.json({ detail: "评论内容不能为空" }, 400);
   const snippet = (await db.execute({ sql: "SELECT id FROM snippets WHERE id = ?", args: [snippetId] })).rows[0];
   if (!snippet) return c.json({ detail: "片段不存在" }, 404);
-
   const result = await db.execute({
     sql: "INSERT INTO comments (snippet_id, user_id, content) VALUES (?, ?, ?)",
     args: [snippetId, user.id, body.content.trim()]
   });
-
-  return c.json({ 
-    id: Number(result.lastInsertRowid), 
-    content: body.content.trim(),
-    user_id: Number(user.id),
-    display_name: user.display_name,
-    created_at: new Date().toISOString()
-  }, 201);
+  return c.json({ id: Number(result.lastInsertRowid), content: body.content.trim(), user_id: Number(user.id), display_name: user.display_name, created_at: new Date().toISOString() }, 201);
 });
 
-// 删除评论
 snippets.delete("/comments/:commentId", requireAuth, async (c) => {
   const commentId = Number(c.req.param("commentId"));
   const user = c.get("user");
-
   const comment = (await db.execute({ sql: "SELECT user_id FROM comments WHERE id = ?", args: [commentId] })).rows[0];
   if (!comment) return c.json({ detail: "评论不存在" }, 404);
-  
-  if (Number(comment.user_id) !== Number(user.id) && !user.is_admin) {
-    return c.json({ detail: "无权删除此评论" }, 403);
-  }
-
+  if (Number(comment.user_id) !== Number(user.id) && !user.is_admin) return c.json({ detail: "无权删除此评论" }, 403);
   await db.execute({ sql: "DELETE FROM comments WHERE id = ?", args: [commentId] });
   return c.body(null, 204);
 });
 
-// ==========================================
-// 片段操作 API
-// ==========================================
-
+// 获取列表（带点赞）
 snippets.get("/", optionalAuth, async (c) => {
   const q = c.req.query("q")?.trim() || "";
   const language = c.req.query("language") || "";
@@ -162,10 +122,9 @@ snippets.get("/", optionalAuth, async (c) => {
   const pageSize = Math.min(50, Math.max(1, Number(c.req.query("page_size")) || 10));
 
   const current = c.get("user");
+  const currentUserId = current ? current.id : -1;
 
-  if ((scope === "mine" || scope === "favorites") && !current) {
-    return c.json({ detail: "请先登录" }, 401);
-  }
+  if ((scope === "mine" || scope === "favorites") && !current) return c.json({ detail: "请先登录" }, 401);
 
   let joinClause = "";
   const conditions = [];
@@ -182,17 +141,8 @@ snippets.get("/", optionalAuth, async (c) => {
     conditions.push("s.is_public = 1");
   }
 
-  if (language) {
-    conditions.push("s.language = ?");
-    params.push(language);
-  }
-
-  if (tag) {
-    joinClause += " JOIN snippet_tags st ON st.snippet_id = s.id JOIN tags t ON t.id = st.tag_id ";
-    conditions.push("t.name = ?");
-    params.push(tag);
-  }
-
+  if (language) { conditions.push("s.language = ?"); params.push(language); }
+  if (tag) { joinClause += " JOIN snippet_tags st ON st.snippet_id = s.id JOIN tags t ON t.id = st.tag_id "; conditions.push("t.name = ?"); params.push(tag); }
   if (q) {
     conditions.push("(s.title LIKE ? OR s.description LIKE ? OR s.code LIKE ?)");
     const like = `%${q}%`;
@@ -208,56 +158,48 @@ snippets.get("/", optionalAuth, async (c) => {
   const total = countRow?.total || 0;
 
   const offset = (page - 1) * pageSize;
-  
   const res = await db.execute({
-    sql: `SELECT DISTINCT s.*, u.display_name
-          FROM snippets s
-          JOIN users u ON u.id = s.user_id
-          ${joinClause}
-          ${where}
-          ORDER BY s.created_at DESC
-          LIMIT ${pageSize} OFFSET ${offset}`,
-    args: params
+    sql: `SELECT DISTINCT s.*, u.display_name,
+          (SELECT COUNT(*) FROM likes l WHERE l.snippet_id = s.id) as likes_count,
+          (SELECT COUNT(*) FROM likes l WHERE l.snippet_id = s.id AND l.user_id = ?) as is_liked
+          FROM snippets s JOIN users u ON u.id = s.user_id
+          ${joinClause} ${where}
+          ORDER BY s.created_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
+    args: [currentUserId, ...params]
   });
 
   const tagMap = await loadTagsForSnippets(res.rows.map((r) => r.id));
-
   return c.json({
     items: res.rows.map((r) => rowToSnippet(r, tagMap.get(r.id) || [])),
-    total,
-    page,
-    page_size: pageSize,
+    total, page, page_size: pageSize,
   });
 });
 
+// 获取详情（带点赞）
 snippets.get("/:id", optionalAuth, async (c) => {
   const id = Number(c.req.param("id"));
   if (!id) return c.json({ detail: "无效的片段 ID" }, 400);
 
+  const current = c.get("user");
+  const currentUserId = current ? current.id : -1;
+
   const res = await db.execute({
-    sql: `SELECT s.*, u.display_name
-          FROM snippets s
-          JOIN users u ON u.id = s.user_id
+    sql: `SELECT s.*, u.display_name,
+          (SELECT COUNT(*) FROM likes l WHERE l.snippet_id = s.id) as likes_count,
+          (SELECT COUNT(*) FROM likes l WHERE l.snippet_id = s.id AND l.user_id = ?) as is_liked
+          FROM snippets s JOIN users u ON u.id = s.user_id
           WHERE s.id = ?`,
-    args: [id]
+    args: [currentUserId, id]
   });
   const row = res.rows[0];
 
   if (!row) return c.json({ detail: "片段不存在" }, 404);
+  if (!row.is_public && (!current || current.id !== row.user_id)) return c.json({ detail: "片段不存在" }, 404);
 
-  const current = c.get("user");
-  if (!row.is_public && (!current || current.id !== row.user_id)) {
-    return c.json({ detail: "片段不存在" }, 404);
-  }
-
-  await db.execute({
-    sql: "UPDATE snippets SET view_count = view_count + 1 WHERE id = ?",
-    args: [id]
-  });
-
+  await db.execute({ sql: "UPDATE snippets SET view_count = view_count + 1 WHERE id = ?", args: [id] });
   row.view_count += 1;
+  
   const tagMap = await loadTagsForSnippets([id]);
-
   return c.json(rowToSnippet(row, tagMap.get(id) || []));
 });
 
@@ -268,16 +210,13 @@ snippets.post("/", requireAuth, async (c) => {
   const title = (body.title || "").trim();
   const language = (body.language || "").trim();
   const code = body.code || "";
-  if (!title || !language || !code) {
-    return c.json({ detail: "标题、语言、代码不能为空" }, 400);
-  }
+  if (!title || !language || !code) return c.json({ detail: "标题、语言、代码不能为空" }, 400);
 
   const current = c.get("user");
   const isPublic = body.is_public !== false ? 1 : 0;
 
   const result = await db.execute({
-    sql: `INSERT INTO snippets (user_id, title, description, language, code, is_public)
-          VALUES (?, ?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO snippets (user_id, title, description, language, code, is_public) VALUES (?, ?, ?, ?, ?, ?)`,
     args: [current.id, title, body.description || null, language, code, isPublic]
   });
 
@@ -285,24 +224,10 @@ snippets.post("/", requireAuth, async (c) => {
   const tags = await getOrCreateTags(body.tags || []);
 
   for (const tag of tags) {
-    await db.execute({
-      sql: "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-      args: [snippetId, tag.id]
-    });
+    await db.execute({ sql: "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING", args: [snippetId, tag.id] });
   }
 
-  return c.json(
-    {
-      id: snippetId,
-      title,
-      language,
-      code,
-      is_public: Boolean(isPublic),
-      owner: { id: current.id, display_name: current.display_name },
-      tags,
-    },
-    201
-  );
+  return c.json({ id: snippetId, title, language, code, is_public: Boolean(isPublic), owner: { id: current.id, display_name: current.display_name }, tags }, 201);
 });
 
 snippets.put("/:id", requireAuth, async (c) => {
@@ -313,41 +238,27 @@ snippets.put("/:id", requireAuth, async (c) => {
 
   const existing = (await db.execute({ sql: "SELECT * FROM snippets WHERE id = ?", args: [id] })).rows[0];
   if (!existing) return c.json({ detail: "片段不存在" }, 404);
-  if (existing.user_id !== current.id && !current.is_admin) {
-    return c.json({ detail: "无权修改" }, 403);
-  }
+  if (existing.user_id !== current.id && !current.is_admin) return c.json({ detail: "无权修改" }, 403);
 
   const fields = [];
   const values = [];
 
   for (const key of ["title", "description", "language", "code"]) {
-    if (body[key] !== undefined) {
-      fields.push(`${key} = ?`);
-      values.push(body[key]);
-    }
+    if (body[key] !== undefined) { fields.push(`${key} = ?`); values.push(body[key]); }
   }
-  if (body.is_public !== undefined) {
-    fields.push("is_public = ?");
-    values.push(body.is_public ? 1 : 0);
-  }
+  if (body.is_public !== undefined) { fields.push("is_public = ?"); values.push(body.is_public ? 1 : 0); }
 
   if (fields.length) {
     fields.push("updated_at = datetime('now')");
     values.push(id);
-    await db.execute({
-      sql: `UPDATE snippets SET ${fields.join(", ")} WHERE id = ?`,
-      args: values
-    });
+    await db.execute({ sql: `UPDATE snippets SET ${fields.join(", ")} WHERE id = ?`, args: values });
   }
 
   if (Array.isArray(body.tags)) {
     await db.execute({ sql: "DELETE FROM snippet_tags WHERE snippet_id = ?", args: [id] });
     const tags = await getOrCreateTags(body.tags);
     for (const tag of tags) {
-      await db.execute({
-        sql: "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-        args: [id, tag.id]
-      });
+      await db.execute({ sql: "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING", args: [id, tag.id] });
     }
   }
 
@@ -357,42 +268,43 @@ snippets.put("/:id", requireAuth, async (c) => {
 snippets.delete("/:id", requireAuth, async (c) => {
   const id = Number(c.req.param("id"));
   const current = c.get("user");
-
   const existing = (await db.execute({ sql: "SELECT * FROM snippets WHERE id = ?", args: [id] })).rows[0];
   if (!existing) return c.json({ detail: "片段不存在" }, 404);
-  if (existing.user_id !== current.id && !current.is_admin) {
-    return c.json({ detail: "无权删除" }, 403);
-  }
-
+  if (existing.user_id !== current.id && !current.is_admin) return c.json({ detail: "无权删除" }, 403);
   await db.execute({ sql: "DELETE FROM snippets WHERE id = ?", args: [id] });
   return c.body(null, 204);
 });
 
+// 收藏
 snippets.post("/:id/favorite", requireAuth, async (c) => {
   const id = Number(c.req.param("id"));
   const current = c.get("user");
-
   const snippet = (await db.execute({ sql: "SELECT id FROM snippets WHERE id = ? AND is_public = 1", args: [id] })).rows[0];
   if (!snippet) return c.json({ detail: "片段不存在" }, 404);
-
-  await db.execute({
-    sql: "INSERT INTO favorites (user_id, snippet_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
-    args: [current.id, id]
-  });
-
+  await db.execute({ sql: "INSERT INTO favorites (user_id, snippet_id) VALUES (?, ?) ON CONFLICT DO NOTHING", args: [current.id, id] });
   return c.body(null, 204);
 });
 
 snippets.delete("/:id/favorite", requireAuth, async (c) => {
   const id = Number(c.req.param("id"));
   const current = c.get("user");
-
-  await db.execute({
-    sql: "DELETE FROM favorites WHERE user_id = ? AND snippet_id = ?",
-    args: [current.id, id]
-  });
-
+  await db.execute({ sql: "DELETE FROM favorites WHERE user_id = ? AND snippet_id = ?", args: [current.id, id] });
   return c.body(null, 204);
+});
+
+// 点赞/取消点赞
+snippets.post("/:id/like", requireAuth, async (c) => {
+  const id = Number(c.req.param("id"));
+  const user = c.get("user");
+  const existing = await db.execute({ sql: "SELECT 1 FROM likes WHERE user_id = ? AND snippet_id = ?", args: [user.id, id] });
+
+  if (existing.rows.length > 0) {
+    await db.execute({ sql: "DELETE FROM likes WHERE user_id = ? AND snippet_id = ?", args: [user.id, id] });
+    return c.json({ liked: false });
+  } else {
+    await db.execute({ sql: "INSERT INTO likes (user_id, snippet_id) VALUES (?, ?)", args: [user.id, id] });
+    return c.json({ liked: true });
+  }
 });
 
 export default snippets;
