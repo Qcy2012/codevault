@@ -1,0 +1,38 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置 Node.js 环境
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: 安装 Node 依赖
+      run: npm install
+
+    - name: 测试编译 C++ 统计工具
+      run: |
+        g++ -O3 -std=c++17 tools/cpp_stats/main.cpp -o tools/cpp_stats/cpp_stats -lstdc++fs
+        echo "C++ 编译成功！"
+        
+    - name: 简单的代码规范检查 (可选)
+      run: |
+        # 这里可以加一些简单的检查，比如检查 package.json 里有没有写到一半的 debugger
+        if grep -rnw './routes' -e 'debugger'; then
+          echo "发现遗留的 debugger 语句，请删除！"
+          exit 1
+        fi
+        echo "代码规范检查通过！"

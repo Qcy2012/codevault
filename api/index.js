@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { chmod, access } from "node:fs/promises";
 import { constants } from "node:fs";
 import { db } from "../db/index.js";
+import { sanitizeInput } from "../middleware/security.js";
+import { rateLimit } from "../middleware/rateLimit.js";
 
 import authRoutes from "../routes/auth.js";
 import snippetRoutes from "../routes/snippets.js";
@@ -34,6 +36,16 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+// 限制登录/注册接口：1 分钟最多 5 次
+app.use("/auth/login", rateLimit(5, 60000));
+app.use("/auth/register", rateLimit(5, 60000));
+
+// 限制发布代码和评论：1 分钟最多 10 次
+app.use("/snippets", rateLimit(10, 60000));
+app.use("/snippets/*/comments", rateLimit(10, 60000));
+
+app.use("/api/*", sanitizeInput); // 挂载安全中间件
 
 // 挂载各模块路由
 app.route("/auth", authRoutes);
