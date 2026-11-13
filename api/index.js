@@ -37,13 +37,12 @@ app.use(
   })
 );
 
-// 限制登录/注册接口：1 分钟最多 5 次
-app.use("/auth/login", rateLimit(5, 60000));
-app.use("/auth/register", rateLimit(5, 60000));
-
-// 限制发布代码和评论：1 分钟最多 10 次
-app.use("/snippets", rateLimit(10, 60000));
-app.use("/snippets/*/comments", rateLimit(10, 60000));
+if (process.env.NODE_ENV === "production") {
+  app.use("/auth/login", rateLimit(5, 60000));
+  app.use("/auth/register", rateLimit(5, 60000));
+  app.use("/snippets", rateLimit(10, 60000));
+  app.use("/snippets/*/comments", rateLimit(10, 60000));
+}
 
 app.use("/api/*", sanitizeInput); // 挂载安全中间件
 

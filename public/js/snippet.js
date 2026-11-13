@@ -129,12 +129,16 @@ function renderSnippet(snippet, root) {
         let count = parseInt(countEl.textContent);
         
         if (res.liked) {
+          likeBtn.classList.add("danger"); // 添加危险类（用于点击态的内阴影）
           likeBtn.style.background = "linear-gradient(180deg, #ef4444 0%, #dc2626 100%)";
           likeBtn.style.borderColor = "#b91c1c";
+          likeBtn.style.boxShadow = "0 2px 6px rgba(220, 38, 38, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)"; // 红色发光阴影
           likeBtn.innerHTML = `👍 已赞 (<span id="like-count">${count + 1}</span>)`;
         } else {
+          likeBtn.classList.remove("danger"); // 移除危险类
           likeBtn.style.background = "linear-gradient(180deg, #10b981 0%, #059669 100%)";
           likeBtn.style.borderColor = "#047857";
+          likeBtn.style.boxShadow = "0 2px 6px rgba(16, 185, 129, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)"; // 绿色发光阴影
           likeBtn.innerHTML = `👍 点赞 (<span id="like-count">${count - 1}</span>)`;
         }
       } catch (e) {

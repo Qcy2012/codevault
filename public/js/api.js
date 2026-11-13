@@ -115,8 +115,11 @@ function createModal(title, message, showCancel = false) {
         if (e.target === overlay) closeModal(false);
       };
     } else {
-      btnConfirm.style.background = "linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%)"; // alert 的确定按钮用蓝色
+      // 是 alert，移除 danger 类，并强制覆盖蓝色阴影
+      btnConfirm.classList.remove("danger");
+      btnConfirm.style.background = "linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%)"; 
       btnConfirm.style.borderColor = "#0369a1";
+      btnConfirm.style.boxShadow = "0 2px 6px rgba(2, 132, 199, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)";
     }
   });
 }

@@ -11,7 +11,7 @@ async function loadUserProfile() {
       </div>
       <div>
         <h2 style="margin: 0; font-size: 24px;">${escapeHtml(user.display_name)}</h2>
-        <p class="muted" style="margin: 4px 0 0 0;">极客加入于 ${new Date(user.created_at).toLocaleDateString()}</p>
+        <p class="muted" style="margin: 4px 0 0 0;">用户加入于 ${new Date(user.created_at).toLocaleDateString()}</p>
       </div>
     `;
 
