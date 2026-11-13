@@ -83,6 +83,8 @@ h1, h2, h3 { color: var(--text-color); margin-top: 0; }
 #nav-auth span { color: var(--text-color); font-weight: 600; font-size: 14px; margin: 0 4px; }
 
 #nav-auth a {
+  position: relative; /* 必须：给光带做定位基准 */
+  overflow: hidden; /* 必须：把超出按钮的光带切掉 */
   color: var(--text-color);
   text-decoration: none;
   font-size: 14px;
@@ -91,11 +93,31 @@ h1, h2, h3 { color: var(--text-color); margin-top: 0; }
   border-radius: 6px;
   background: var(--nav-btn-bg);
   border: 1px solid var(--border-color);
-  /* 把过渡时间调快一点，回弹会更干脆 */
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); 
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  z-index: 1;
+}
+
+/* 核心：光泽扫过特效 */
+#nav-auth a::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%; /* 初始位置在按钮左侧外面 */
+  width: 50%;
+  height: 100%;
+  /* 渐变光带，中间白，两边透明 */
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transform: skewX(-25deg); /* 倾斜一点更有质感 */
+  transition: all 0.5s ease-in-out;
+  pointer-events: none; /* 确保光带不影响鼠标点击 */
+}
+
+/* 悬浮时光带快速扫过 */
+#nav-auth a:hover::after {
+  left: 150%;
 }
 
 #nav-auth a:hover {
@@ -103,10 +125,9 @@ h1, h2, h3 { color: var(--text-color); margin-top: 0; }
   transform: translateY(-1px);
 }
 
-/* 新增：鼠标按下去时的 Q 弹反馈 */
 #nav-auth a:active {
   transform: translateY(1px) scale(0.96); 
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); /* 增加内阴影，模拟按下去凹陷的感觉 */
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); 
 }
 
 #nav-auth a[href="login.html"], 

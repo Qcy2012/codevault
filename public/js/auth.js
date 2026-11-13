@@ -20,20 +20,31 @@ function renderNav() {
   if (!nav) return;
 
   const user = getUser();
+  
+  // 无论是否登录，都先放上“代码统计”
+  let navHTML = `<a href="stats.html">代码统计</a>`;
+
   if (user) {
-    nav.innerHTML = `
+    navHTML += `
       <a href="me.html">我的</a>
       ${user.is_admin ? `<a href="admin.html">管理后台</a>` : ""}
       <span>${escapeHtml(user.display_name)}</span>
       <a href="#" id="logout-link">退出</a>
     `;
-    document.getElementById("logout-link").addEventListener("click", (event) => {
+  } else {
+    navHTML += `<a href="login.html">登录</a> <a href="register.html">注册</a>`;
+  }
+  
+  nav.innerHTML = navHTML;
+
+  // 绑定退出事件
+  const logoutBtn = document.getElementById("logout-link");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", (event) => {
       event.preventDefault();
       clearAuth();
       location.href = "index.html";
     });
-  } else {
-    nav.innerHTML = `<a href="login.html">登录</a> <a href="register.html">注册</a>`;
   }
 
   // 注入主题切换按钮
