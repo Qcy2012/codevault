@@ -112,7 +112,7 @@ async function loadComments(snippetId) {
     const user = getUser();
 
     if (comments.length === 0) {
-      listEl.innerHTML = `<p class="muted">暂无评论，快来抢沙发！</p>`;
+      listEl.innerHTML = `<p class="muted">暂无评论，快来抢首评！</p>`;
       return;
     }
 
@@ -128,7 +128,7 @@ async function loadComments(snippetId) {
             <span class="muted" style="font-size: 12px;">${new Date(c.created_at).toLocaleString()}</span>
           </div>
           <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(c.content)}</p>
-          ${canDelete ? `<button onclick="deleteComment(${c.id}, ${snippetId})" style="background: none; border: none; color: #f87171; font-size: 12px; padding: 0; margin-top: 8px; cursor: pointer;">删除</button>` : ""}
+          ${canDelete ? `<span onclick="deleteComment(${c.id}, ${snippetId})" style="color: #f87171; font-size: 12px; margin-top: 8px; display: inline-block; cursor: pointer; user-select: none;">删除</span>` : ""}
         </div>
       `;
     }).join("");
