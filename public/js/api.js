@@ -124,3 +124,26 @@ function createModal(title, message, showCancel = false) {
 // 封装成 Promise 形式
 window.showAlert = (message, title = "提示") => createModal(title, message, false);
 window.showConfirm = (message, title = "确认操作") => createModal(title, message, true);
+
+// ==========================================
+// 全局 Toast 提示
+// ==========================================
+window.showToast = (message, isError = false) => {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  if (isError) {
+    toast.style.color = "#f87171";
+    toast.style.borderColor = "#7f1d1d";
+  }
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  // 触发动画
+  setTimeout(() => toast.classList.add("show"), 10);
+
+  // 3秒后自动消失
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+};

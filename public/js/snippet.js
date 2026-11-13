@@ -84,9 +84,9 @@ function renderSnippet(snippet, root) {
   document.getElementById("copy-btn").onclick = async () => {
     try {
       await navigator.clipboard.writeText(snippet.code);
-      document.getElementById("copy-btn").textContent = "已复制";
+      showToast("✅ 代码已复制到剪贴板！"); // 改用 Toast
     } catch {
-      showAlert("复制失败，请手动选择代码复制");
+      showToast("复制失败，请手动选择代码复制", true);
     }
   };
 

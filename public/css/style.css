@@ -344,3 +344,29 @@ pre, code {
   background: linear-gradient(180deg, #64748b 0%, #475569 100%) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
 }
+
+/* ==========================================
+   Toast 轻提示
+   ========================================== */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: rgba(30, 41, 59, 0.9);
+  color: #38bdf8;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 1px solid #334155;
+  opacity: 0;
+  z-index: 10000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
