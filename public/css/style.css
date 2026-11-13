@@ -27,7 +27,7 @@
   --primary: #0ea5e9;
   --primary-hover: #0284c7;
   --muted: #64748b;
-  --pre-bg: #f1f5f9;
+  --pre-bg: #f8fafc;
   --nav-bg: #ffffff;
   --nav-btn-bg: rgba(226, 232, 240, 0.8);
   --nav-btn-hover: rgba(203, 213, 225, 1);
@@ -50,7 +50,6 @@ body {
 
 a { color: #38bdf8; text-decoration: none; }
 a:hover { text-decoration: underline; }
-
 h1, h2, h3 { color: var(--text-color); margin-top: 0; }
 
 /* 布局容器 */
@@ -84,7 +83,6 @@ h1, h2, h3 { color: var(--text-color); margin-top: 0; }
 #nav-auth { display: flex; gap: 10px; align-items: center; }
 #nav-auth span { color: var(--text-color); font-weight: 600; font-size: 14px; margin: 0 4px; }
 
-/* 导航栏专属按钮（暗黑玻璃态） */
 #nav-auth a {
   color: var(--text-color);
   text-decoration: none;
@@ -125,7 +123,7 @@ h1, h2, h3 { color: var(--text-color); margin-top: 0; }
 }
 
 /* ==========================================
-   4. 按钮系统（主按钮、危险按钮等）
+   4. 按钮系统 (完美恢复质感)
    ========================================== */
 button, .button {
   background: linear-gradient(180deg, #0ea5e9 0%, var(--primary) 100%);
@@ -134,13 +132,14 @@ button, .button {
   font-weight: 600;
   font-size: 14px;
   border: 1px solid var(--primary-hover);
-  border-radius: 6px;
+  border-radius: 8px; /* 恢复 8px 圆润感 */
   padding: 8px 16px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  /* 恢复质感阴影 */
   box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -152,7 +151,7 @@ button:hover, .button:hover {
 }
 button:active, .button:active {
   transform: translateY(1px);
-  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 button:disabled, .button:disabled {
   background: var(--border-color);
@@ -163,16 +162,20 @@ button:disabled, .button:disabled {
   box-shadow: none;
 }
 
-/* 危险按钮（红色） */
 button.danger {
   background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
   border-color: #b91c1c;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 button.danger:hover {
   background: linear-gradient(180deg, #f87171 0%, #ef4444 100%);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+button.danger:active {
+  background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.3);
 }
 
-/* 取消/灰色按钮 */
 .btn-cancel {
   background: linear-gradient(180deg, #475569 0%, #334155 100%) !important;
   border-color: var(--border-color) !important;
@@ -183,7 +186,7 @@ button.danger:hover {
 }
 
 /* ==========================================
-   5. 表单控件
+   5. 表单控件 (恢复边框质感)
    ========================================== */
 .form { display: flex; flex-direction: column; gap: 12px; }
 .form label { display: flex; flex-direction: column; gap: 4px; font-weight: 500; }
@@ -192,15 +195,14 @@ button.danger:hover {
 input, select, textarea {
   background: var(--input-bg);
   color: var(--text-color);
-  border: 1px solid var(--input-border);
+  border: 1px solid var(--input-border); /* 恢复清晰边框 */
   border-radius: 6px;
   padding: 8px 10px;
   font: inherit;
-  transition: border-color 0.2s;
+  transition: outline 0.2s;
 }
 input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: #38bdf8;
+  outline: 2px solid #38bdf8; /* 恢复你的发光特效 */
 }
 textarea {
   font-family: "Consolas", "Cascadia Code", "Courier New", monospace !important;
@@ -234,7 +236,7 @@ textarea {
 .pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin: 24px 0; }
 
 /* ==========================================
-   7. 代码展示区 (详情页)
+   7. 代码展示区
    ========================================== */
 pre {
   background: var(--pre-bg);
@@ -253,7 +255,7 @@ pre, code, pre code, code.hljs, code.hljs * {
 .actions { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
 
 /* ==========================================
-   8. Markdown 双屏预览与 CodeMirror
+   8. Markdown 与 CodeMirror
    ========================================== */
 .editor-split { display: flex; gap: 16px; min-height: 200px; }
 .editor-split textarea, .editor-split .preview {
@@ -269,7 +271,6 @@ pre, code, pre code, code.hljs, code.hljs * {
 }
 .editor-split .preview { overflow-y: auto; background: var(--card-bg); }
 .editor-split .preview p { margin-top: 0; }
-
 .CodeMirror {
   height: 400px;
   border-radius: 6px;
@@ -279,7 +280,7 @@ pre, code, pre code, code.hljs, code.hljs * {
 }
 
 /* ==========================================
-   9. 自定义弹窗 (Modal)
+   9. 弹窗与提示
    ========================================== */
 .modal-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -305,9 +306,6 @@ pre, code, pre code, code.hljs, code.hljs * {
 .modal-actions { display: flex; gap: 12px; justify-content: center; }
 .modal-actions button { flex: 1; padding: 8px 0; }
 
-/* ==========================================
-   10. Toast 轻提示
-   ========================================== */
 .toast {
   position: fixed; top: 20px; left: 50%;
   transform: translateX(-50%) translateY(-20px);
@@ -322,11 +320,6 @@ pre, code, pre code, code.hljs, code.hljs * {
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ==========================================
-   11. 评论列表
-   ========================================== */
-.comment-item {
-  border-bottom: 1px solid var(--border-color);
-  padding: 12px 0;
-}
+/* 评论列表 */
+.comment-item { border-bottom: 1px solid var(--border-color); padding: 12px 0; }
 .comment-item:last-child { border-bottom: none; }
