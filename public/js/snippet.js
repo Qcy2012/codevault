@@ -121,13 +121,21 @@ async function loadComments(snippetId) {
       const isAdmin = user && user.is_admin;
       const canDelete = isOwner || isAdmin;
 
+      // 修复时区：把 SQLite 的时间加上 'T' 和 'Z'，变成标准 ISO 格式
+      let displayTime = "";
+      if (c.created_at) {
+        const isoString = c.created_at.replace(' ', 'T') + 'Z';
+        displayTime = new Date(isoString).toLocaleString('zh-CN', { hour12: false });
+      }
+
       return `
         <div class="comment-item" style="border-bottom: 1px solid #334155; padding: 12px 0;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
             <strong style="color: #38bdf8;">${escapeHtml(c.display_name)}</strong>
-            <span class="muted" style="font-size: 12px;">${new Date(c.created_at).toLocaleString()}</span>
+            <!-- 这里换成 displayTime 变量 -->
+            <span class="muted" style="font-size: 12px;">${displayTime}</span>
           </div>
-          <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(c.content)}</p>
+          <p style="margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.5;">${escapeHtml(c.content)}</p>
           ${canDelete ? `<button class="danger" onclick="deleteComment(${c.id}, ${snippetId})" style="font-size: 12px; padding: 4px 10px; margin-top: 8px; border-radius: 4px;">删除</button>` : ""}
         </div>
       `;
