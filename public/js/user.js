@@ -1,3 +1,4 @@
+//public/js/user.js
 const userId = new URLSearchParams(location.search).get("id");
 
 async function loadUserProfile() {
