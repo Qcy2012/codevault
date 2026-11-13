@@ -1,5 +1,5 @@
 // db/index.js
-import { connect } from "@libsql/client";
+import { createClient } from "@libsql/client"; // 修复：改为 createClient
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -13,9 +13,9 @@ if (isProduction) {
   }
   const url = process.env.TURSO_DATABASE_URL.replace("libsql://", "https://").trim();
   const token = process.env.TURSO_AUTH_TOKEN.trim();
-  db = connect({ url, authToken: token });
+  db = createClient({ url, authToken: token }); // 修复：改为 createClient
 } else {
-  db = connect({ url: `file:${join(__dirname, "codevault.db")}` });
+  db = createClient({ url: `file:${join(__dirname, "codevault.db")}` }); // 修复：改为 createClient
 }
 
 const schema = `

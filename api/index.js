@@ -18,7 +18,11 @@ const app = new Hono().basePath("/api");
 // 全局错误拦截，防止 Cloud 端返回 HTML 500 页面导致前端 JSON 解析崩溃
 app.onError((err, c) => {
   console.error("💥 后端发生错误:", err);
-  return c.json({ detail: `服务器内部错误: ${err.message}` }, 500);
+  // 直接把真实错误返回，方便前端和网络面板看到
+  return c.json({ 
+    detail: `服务器内部错误: ${err.message}`,
+    stack: err.stack 
+  }, 500);
 });
 
 app.use("*", logger());
