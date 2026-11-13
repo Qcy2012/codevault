@@ -128,7 +128,7 @@ async function loadComments(snippetId) {
             <span class="muted" style="font-size: 12px;">${new Date(c.created_at).toLocaleString()}</span>
           </div>
           <p style="margin: 0; white-space: pre-wrap;">${escapeHtml(c.content)}</p>
-          ${canDelete ? `<span onclick="deleteComment(${c.id}, ${snippetId})" style="color: #f87171; font-size: 12px; margin-top: 8px; display: inline-block; cursor: pointer; user-select: none;">删除</span>` : ""}
+          ${canDelete ? `<button class="danger" onclick="deleteComment(${c.id}, ${snippetId})" style="font-size: 12px; padding: 4px 10px; margin-top: 8px; border-radius: 4px;">删除</button>` : ""}
         </div>
       `;
     }).join("");
