@@ -47,7 +47,7 @@ function renderSnippet(snippet, root) {
         <span class="lang">${escapeHtml(snippet.language)}</span>
         ${tags}
         <span>${escapeHtml(snippet.owner.display_name)}</span>
-        <span>${new Date(snippet.created_at).toLocaleString()}</span>
+        <span>${new Date(snippet.created_at).toLocaleString('zh-CN', { hour12: false })}</span>
         <span>浏览 ${snippet.view_count}</span>
       </div>
       <div class="actions">

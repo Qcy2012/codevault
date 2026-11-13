@@ -47,7 +47,7 @@ function renderCard(snippet) {
         <span class="lang">${escapeHtml(snippet.language)}</span>
         ${tags}
         <span>${escapeHtml(snippet.owner.display_name)}</span>
-        <span>${new Date(snippet.created_at).toLocaleString()}</span>
+        <span>${new Date(snippet.created_at).toLocaleString('zh-CN', { hour12: false })}</span>
       </div>
       <p class="muted">${snippet.is_public ? "公开" : "私有"} · 浏览 ${snippet.view_count}</p>
     </article>

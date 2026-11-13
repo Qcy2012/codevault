@@ -4,6 +4,14 @@ import { requireAuth, optionalAuth } from "../middleware/auth.js";
 
 const snippets = new Hono();
 
+// 新增时间标准化函数
+function normalizeTime(timeStr) {
+  if (!timeStr) return null;
+  let t = timeStr.includes('T') ? timeStr : timeStr.replace(' ', 'T');
+  if (!t.endsWith('Z')) t += 'Z';
+  return t;
+}
+
 function rowToSnippet(row, tags = []) {
   return {
     id: row.id,
@@ -13,8 +21,8 @@ function rowToSnippet(row, tags = []) {
     code: row.code,
     is_public: Boolean(row.is_public),
     view_count: row.view_count,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
+    created_at: normalizeTime(row.created_at), // 处理创建时间
+    updated_at: normalizeTime(row.updated_at), // 处理更新时间
     owner: {
       id: row.user_id,
       display_name: row.display_name,
