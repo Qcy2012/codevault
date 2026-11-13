@@ -3,7 +3,7 @@ function escapeHtml(str) { return String(str).replace(/[&<>"']/g, c => ({'&':'&a
 async function loadAdminData() {
   const user = getUser();
   if (!user || !user.is_admin) {
-    alert("无权访问");
+    showAlert("无权访问");
     location.href = "index.html";
     return;
   }
@@ -51,7 +51,7 @@ window.toggleVisibility = async (id, currentIsPublic) => {
     });
     loadAdminData();
   } catch (e) {
-    alert("操作失败");
+    showAlert("操作失败");
   }
 };
 
@@ -64,7 +64,7 @@ window.deleteSnippet = async (id) => {
     });
     loadAdminData();
   } catch (e) {
-    alert("删除失败");
+    showAlert("删除失败");
   }
 };
 

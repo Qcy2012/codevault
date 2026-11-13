@@ -72,3 +72,55 @@ const tagApi = {
   list: (q) =>
     request(`/api/tags${q ? `?q=${encodeURIComponent(q)}` : ""}`, { auth: false }),
 };
+
+// ==========================================
+// 全局弹窗组件
+// ==========================================
+function createModal(title, message, showCancel = false) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    
+    overlay.innerHTML = `
+      <div class="modal-box">
+        <h3 class="modal-title">${escapeHtml(title)}</h3>
+        <div class="modal-desc">${escapeHtml(message)}</div>
+        <div class="modal-actions">
+          ${showCancel ? `<button id="modal-cancel" class="btn-cancel">取消</button>` : ""}
+          <button id="modal-confirm" class="danger">确定</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // 触发动画
+    setTimeout(() => overlay.classList.add("show"), 10);
+
+    const closeModal = (result) => {
+      overlay.classList.remove("show");
+      setTimeout(() => {
+        document.body.removeChild(overlay);
+        resolve(result);
+      }, 200); // 等待动画结束再移除
+    };
+
+    const btnConfirm = overlay.querySelector("#modal-confirm");
+    btnConfirm.onclick = () => closeModal(true);
+
+    if (showCancel) {
+      const btnCancel = overlay.querySelector("#modal-cancel");
+      btnCancel.onclick = () => closeModal(false);
+      // 如果点击遮罩层，也相当于取消
+      overlay.onclick = (e) => {
+        if (e.target === overlay) closeModal(false);
+      };
+    } else {
+      btnConfirm.style.background = "linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%)"; // alert 的确定按钮用蓝色
+      btnConfirm.style.borderColor = "#0369a1";
+    }
+  });
+}
+
+// 封装成 Promise 形式
+window.showAlert = (message, title = "提示") => createModal(title, message, false);
+window.showConfirm = (message, title = "确认操作") => createModal(title, message, true);

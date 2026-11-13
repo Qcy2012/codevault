@@ -86,7 +86,7 @@ function renderSnippet(snippet, root) {
       await navigator.clipboard.writeText(snippet.code);
       document.getElementById("copy-btn").textContent = "已复制";
     } catch {
-      alert("复制失败，请手动选择代码复制");
+      showAlert("复制失败，请手动选择代码复制");
     }
   };
 
@@ -97,7 +97,7 @@ function renderSnippet(snippet, root) {
         await snippetApi.favorite(snippet.id);
         favBtn.textContent = "已收藏";
       } catch (error) {
-        alert(error.message);
+        showAlert(error.message);
       }
     };
   }
@@ -105,12 +105,14 @@ function renderSnippet(snippet, root) {
   const delBtn = document.getElementById("del-btn");
   if (delBtn) {
     delBtn.onclick = async () => {
-      if (!confirm("确认删除？")) return;
+      const isConfirmed = await showConfirm("确认删除这个代码片段吗？");
+      if (!isConfirmed) return;
+      
       try {
         await snippetApi.remove(snippet.id);
         location.href = "index.html";
       } catch (error) {
-        alert(error.message);
+        showAlert(error.message);
       }
     };
   }
@@ -129,7 +131,7 @@ async function loadComments(snippetId) {
     const user = getUser();
 
     if (comments.length === 0) {
-      listEl.innerHTML = `<p class="muted">暂无评论，快来抢沙发！</p>`;
+      listEl.innerHTML = `<p class="muted">暂无评论，快来抢首评！</p>`;
       return;
     }
 
@@ -194,12 +196,15 @@ function initCommentForm(snippetId) {
 }
 
 window.deleteComment = async (commentId, snippetId) => {
-  if (!confirm("确认删除这条评论吗？")) return;
+  // 使用新的自定义弹窗
+  const isConfirmed = await showConfirm("确认删除这条评论吗？");
+  if (!isConfirmed) return;
+  
   try {
     await request(`/api/snippets/comments/${commentId}`, { method: "DELETE" });
     await loadComments(snippetId);
   } catch (error) {
-    alert(error.message);
+    showAlert(error.message);
   }
 };
 
