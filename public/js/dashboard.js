@@ -124,6 +124,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   } catch (error) {
     console.error("大屏加载失败:", error);
+    // 强制在页面上显示报错
+    document.querySelector(".dashboard-container").innerHTML = `
+      <div style="color: #f87171; text-align: center; margin-top: 50px; font-size: 20px;">
+        <h2>⚠️ 加载失败</h2>
+        <p>${error.message}</p>
+        <p>请按 F12 查看网络请求响应。</p>
+      </div>
+    `;
   }
 });
 

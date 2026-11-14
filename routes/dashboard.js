@@ -5,11 +5,18 @@ const dashboard = new Hono();
 
 dashboard.get("/", async (c) => {
   try {
-    // 1. 基础汇总数据 (兼容 BigInt 和 null)
-    const usersCount = (await db.execute("SELECT COUNT(*) as count FROM users")).rows[0]?.count || 0;
-    const snippetsCount = (await db.execute("SELECT COUNT(*) as count FROM snippets")).rows[0]?.count || 0;
-    const likesCount = (await db.execute("SELECT COUNT(*) as count FROM likes")).rows[0]?.count || 0;
-    const viewsCount = (await db.execute("SELECT SUM(view_count) as count FROM snippets")).rows[0]?.count || 0;
+    // 1. 基础汇总数据（强制使用 parseInt 转换，避免 BigInt 导致 JSON 报错）
+    const usersRes = await db.execute("SELECT COUNT(*) as count FROM users");
+    const snippetsRes = await db.execute("SELECT COUNT(*) as count FROM snippets");
+    const likesRes = await db.execute("SELECT COUNT(*) as count FROM likes");
+    const viewsRes = await db.execute("SELECT SUM(view_count) as count FROM snippets");
+
+    const summary = {
+      users: parseInt(usersRes.rows[0]?.count || 0, 10),
+      snippets: parseInt(snippetsRes.rows[0]?.count || 0, 10),
+      likes: parseInt(likesRes.rows[0]?.count || 0, 10),
+      views: parseInt(viewsRes.rows[0]?.count || 0, 10),
+    };
 
     // 2. 语言分布
     const langRes = await db.execute(`
@@ -18,49 +25,38 @@ dashboard.get("/", async (c) => {
       GROUP BY language 
       ORDER BY count DESC
     `);
+    const languages = langRes.rows.map(r => ({ name: r.language, value: parseInt(r.count, 10) }));
 
-    // 3. 获取所有代码的创建时间，在 JS 中进行时间统计（避开 SQL 时间函数兼容性问题）
-    const allSnippets = (await db.execute("SELECT created_at FROM snippets")).rows;
+    // 3. 获取所有代码的创建时间
+    const allSnippetsRes = await db.execute("SELECT created_at FROM snippets");
+    const allSnippets = allSnippetsRes.rows || [];
 
-    // 统计过去 7 天趋势
+    // 4. 过去 7 天发帖趋势
     const trend7Days = [];
     const today = new Date();
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0]; // 获取 YYYY-MM-DD
-      
-      // 在 JS 里过滤匹配该日期的数量
-      const count = allSnippets.filter(s => s.created_at && s.created_at.startsWith(dateStr)).length;
+      const dateStr = d.toISOString().split('T')[0];
+      const count = allSnippets.filter(s => s.created_at && String(s.created_at).startsWith(dateStr)).length;
       trend7Days.push({ date: dateStr, count });
     }
 
-    // 统计过去 365 天热力图数据
-    const heatmapData = allSnippets
-      .filter(s => s.created_at && s.created_at.length >= 10)
-      .map(s => s.created_at.substring(0, 10)) // 截取 YYYY-MM-DD
-      .reduce((acc, date) => {
-        acc[date] = (acc[date] || 0) + 1;
-        return acc;
-      }, {});
-      
-    // 转为 ECharts 需要的数组格式
-    const heatmapArray = Object.keys(heatmapData).map(date => ({ date, count: heatmapData[date] }));
-
-    return c.json({
-      summary: {
-        users: Number(usersCount),
-        snippets: Number(snippetsCount),
-        likes: Number(likesCount),
-        views: Number(viewsCount)
-      },
-      languages: langRes.rows.map(r => ({ name: r.language, value: Number(r.count) })),
-      trend7Days,
-      heatmapData: heatmapArray
+    // 5. 过去 365 天发帖热力图
+    const heatmapMap = {};
+    allSnippets.forEach(s => {
+      if (s.created_at && String(s.created_at).length >= 10) {
+        const date = String(s.created_at).substring(0, 10);
+        heatmapMap[date] = (heatmapMap[date] || 0) + 1;
+      }
     });
+    const heatmapData = Object.keys(heatmapMap).map(date => ({ date, count: heatmapMap[date] }));
+
+    return c.json({ summary, languages, trend7Days, heatmapData });
+    
   } catch (error) {
-    console.error("获取大屏数据失败:", error);
-    return c.json({ detail: "获取数据失败", error: error.message }, 500);
+    console.error("💥 大屏数据获取失败:", error);
+    return c.json({ detail: "大屏数据获取失败", error: error.message }, 500);
   }
 });
 
