@@ -2,9 +2,12 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "public",
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" }
+  ],
+  "crons": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api"
+      "path": "/api/status/cron",
+      "schedule": "0 0 * * *"
     }
   ],
   "functions": {

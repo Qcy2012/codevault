@@ -46,3 +46,16 @@ CREATE TABLE IF NOT EXISTS likes (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (user_id, snippet_id)
 );
+CREATE TABLE IF NOT EXISTS status_checks (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    status      TEXT NOT NULL, -- 'up' 或 'down'
+    duration_ms INTEGER NOT NULL, -- 响应耗时
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE IF NOT EXISTS incidents (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    title        TEXT NOT NULL,
+    status       TEXT NOT NULL, -- 'investigating' (调查中), 'resolved' (已解决)
+    started_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    resolved_at  TEXT
+);

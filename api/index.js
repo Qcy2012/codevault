@@ -12,7 +12,8 @@ import snippetRoutes from "../routes/snippets.js";
 import tagRoutes from "../routes/tags.js";
 import adminRoutes from "../routes/admin.js";
 import userRoutes from "../routes/users.js";
-import dashboardRoutes from "../routes/dashboard.js"; // 新增的
+import dashboardRoutes from "../routes/dashboard.js";
+import statusRoutes from "../routes/status.js";
 
 const app = new Hono().basePath("/api");
 
@@ -37,7 +38,8 @@ app.route("/snippets", snippetRoutes);
 app.route("/tags", tagRoutes);
 app.route("/admin", adminRoutes);
 app.route("/users", userRoutes);
-app.route("/dashboard", dashboardRoutes); // 挂载大屏路由
+app.route("/dashboard", dashboardRoutes);
+app.route("/status", statusRoutes);
 
 app.get("/health", (c) => c.json({ status: "ok" }));
 
