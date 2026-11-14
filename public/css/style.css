@@ -52,7 +52,7 @@ a { color: #38bdf8; text-decoration: none; }
 h1, h2, h3 { color: var(--text-color); margin-top: 0; }
 
 /* 布局容器 */
-.container { max-width: 960px; margin: 24px auto; padding: 0 16px; }
+.container { max-width: 1280px; margin: 24px auto; padding: 0 24px; }
 .container.narrow { max-width: 480px; }
 
 /* 卡片 */
