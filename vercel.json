@@ -1,6 +1,12 @@
 {
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "public",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    }
+  ],
   "functions": {
     "api/index.js": {
       "includeFiles": "api/cpp_stats"
