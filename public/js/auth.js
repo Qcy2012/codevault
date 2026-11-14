@@ -22,7 +22,10 @@ function renderNav() {
   const user = getUser();
   
   // 无论是否登录，都先放上“代码统计”
-  let navHTML = `<a href="stats.html">代码统计</a>`;
+  let navHTML = `
+    <a href="dashboard.html">数据仪表板</a>
+    <a href="stats.html">代码统计</a>
+  `;
 
   if (user) {
     navHTML += `

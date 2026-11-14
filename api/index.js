@@ -8,6 +8,7 @@ import { constants } from "node:fs";
 import { db } from "../db/index.js";
 import { sanitizeInput } from "../middleware/security.js";
 import { rateLimit } from "../middleware/rateLimit.js";
+import { dashboardRoutes } from "../routes/dashboard.js";
 
 import authRoutes from "../routes/auth.js";
 import snippetRoutes from "../routes/snippets.js";
@@ -52,6 +53,7 @@ app.route("/snippets", snippetRoutes);
 app.route("/tags", tagRoutes);
 app.route("/admin", adminRoutes);
 app.route("/users", userRoutes);
+app.route("/dashboard", dashboardRoutes);
 
 // 健康检查
 app.get("/health", (c) => c.json({ status: "ok" }));

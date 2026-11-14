@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <script>
+    document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据监控大屏 - CodeVault</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- 引入 ECharts -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <style>
+    /* 大屏专属背景与网格 */
+    body {
+      background-color: #0b1120;
+      background-image: 
+        linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+      background-size: 30px 30px;
+    }
+    
+    .dashboard-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .dashboard-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .dashboard-header h1 {
+      font-size: 32px;
+      letter-spacing: 4px;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+    }
+
+    /* 数据卡片 */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: rgba(30, 41, 59, 0.6);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2), inset 0 0 10px rgba(56, 189, 248, 0.1);
+      transition: all 0.3s;
+    }
+    .kpi-card:hover {
+      transform: translateY(-5px);
+      border-color: #38bdf8;
+      box-shadow: 0 8px 25px rgba(56, 189, 248, 0.3);
+    }
+    .kpi-value {
+      font-size: 36px;
+      font-weight: bold;
+      color: #38bdf8;
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    }
+    .kpi-label {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-top: 8px;
+    }
+
+    /* 图表布局 */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .chart-box {
+      background: rgba(30, 41, 59, 0.6);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 8px;
+      padding: 20px;
+      height: 380px;
+    }
+    .chart-full {
+      grid-column: span 2;
+      height: 250px;
+    }
+    
+    /* 图表容器 */
+    .echarts-div {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <div class="dashboard-header">
+      <h1>📊 CODEVAULT 数据监控中心</h1>
+    </div>
+
+    <!-- 顶部 KPI -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-users">0</div>
+        <div class="kpi-label">极客用户</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-snippets">0</div>
+        <div class="kpi-label">代码片段</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-likes">0</div>
+        <div class="kpi-label">全站点赞</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value" id="kpi-views">0</div>
+        <div class="kpi-label">代码浏览量</div>
+      </div>
+    </div>
+
+    <!-- 中部图表 -->
+    <div class="chart-grid">
+      <div class="chart-box">
+        <div id="chart-trend" class="echarts-div"></div>
+      </div>
+      <div class="chart-box">
+        <div id="chart-lang" class="echarts-div"></div>
+      </div>
+    </div>
+
+    <!-- 底部热力图 -->
+    <div class="chart-grid">
+      <div class="chart-box chart-full">
+        <div id="chart-heatmap" class="echarts-div"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
