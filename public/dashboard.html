@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <script>
-    document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
-  </script>
+  <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>数据监控大屏 - CodeVault</title>
@@ -94,7 +92,6 @@
       height: 250px;
     }
     
-    /* 图表容器 */
     .echarts-div {
       width: 100%;
       height: 100%;
@@ -102,6 +99,12 @@
   </style>
 </head>
 <body>
+  <!-- 补全顶部导航栏 -->
+  <header class="topbar">
+    <a class="logo" href="index.html">CodeVault</a>
+    <nav id="nav-auth"></nav>
+  </header>
+
   <div class="dashboard-container">
     <div class="dashboard-header">
       <h1>📊 CODEVAULT 数据监控中心</h1>
@@ -145,7 +148,10 @@
     </div>
   </div>
 
+  <!-- 补全缺失的脚本 -->
   <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/dashboard.js"></script>
 </body>
 </html>
