@@ -114,7 +114,10 @@ function generateOutline(code, lang) {
     if ((match = regex.exec(line)) !== null) {
       // 提取匹配到的名称（可能在第1、2、3个捕获组中）
       const name = match[1] || match[2] || match[3];
-      if (name) {
+      
+      // 新增：排除常见的控制流关键字，防止误伤
+      const keywords = ["if", "for", "while", "switch", "catch", "return", "else"];
+      if (name && !keywords.includes(name)) {
         outlineData.push({
           name: name,
           line: index + 1,
