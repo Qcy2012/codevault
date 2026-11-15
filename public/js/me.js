@@ -83,15 +83,15 @@ function initMe() {
     currentScope = scope;
     currentPage = 1;
 
-    // 强制控制 display，彻底解决重叠问题
+    // 👇 使用强制隐藏类，彻底解决重叠
     if (scope === "dev") {
-      listEl.style.display = "none";
-      pagerEl.style.display = "none";
-      devPanel.style.display = "block";
+      listEl.classList.add("hidden-force");
+      pagerEl.classList.add("hidden-force");
+      devPanel.classList.remove("hidden");
     } else {
-      devPanel.style.display = "none";
-      listEl.style.display = "flex"; // .list 默认是 flex 布局
-      pagerEl.style.display = "flex"; // .pager 默认是 flex 布局
+      devPanel.classList.add("hidden");
+      listEl.classList.remove("hidden-force");
+      pagerEl.classList.remove("hidden-force");
       loadMySnippets();
     }
 
@@ -122,25 +122,24 @@ function initMe() {
         headers: { "Authorization": `Bearer ${getToken()}` }
       });
       const data = await res.json();
-      if (data.api_key) {
+      if (res.ok) {
         document.getElementById("api-key-input").value = data.api_key;
         showToast("✅ 新 API Key 已生成");
       } else {
-        showAlert(data.detail || "生成失败");
+        // 👇 把具体的 500 报错原因弹出来
+        showAlert(`错误: ${data.detail || data.error || "生成失败"}`);
       }
     } catch (e) {
-      showAlert("网络请求失败");
+      showAlert("网络请求失败，请查看控制台");
     } finally {
       btn.disabled = false;
       btn.textContent = "生成新 Key";
     }
   };
 
-  // 初始化默认面板
   setActiveTab("mine");
 }
 
-// 恢复和彻底删除逻辑保持不变
 window.restoreSnippet = async (id) => {
   try {
     await request(`/api/snippets/${id}/restore`, { method: "POST" });

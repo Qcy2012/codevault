@@ -465,3 +465,6 @@ pre, code, pre code, code.hljs, code.hljs * {
   font-family: inherit;
   font-size: 11px;
 }
+
+/* me.html:强制隐藏，防止被 Flex 覆盖 */
+.hidden-force { display: none !important; }
