@@ -97,3 +97,36 @@ function initIndex() {
 }
 
 document.addEventListener("DOMContentLoaded", initIndex);
+
+// ==========================================
+// 全局快捷键：Ctrl+K 聚焦搜索，Esc 清空失焦
+// ==========================================
+document.addEventListener("keydown", (e) => {
+  const searchInput = document.getElementById("search");
+  if (!searchInput) return; // 如果当前页面没有搜索框则跳过
+
+  // 监听 Ctrl+K (Windows) 或 Cmd+K (Mac)
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault(); // 阻止浏览器默认的搜索行为
+    
+    // 聚焦搜索框
+    searchInput.focus();
+    searchInput.select(); // 全选已有文字，方便直接覆盖输入
+    
+    // 添加一个发光聚焦动画
+    searchInput.style.boxShadow = "0 0 0 3px rgba(56, 189, 248, 0.3)";
+    setTimeout(() => {
+      searchInput.style.boxShadow = "";
+    }, 500);
+  }
+
+  // 监听 Esc
+  if (e.key === "Escape" && document.activeElement === searchInput) {
+    searchInput.blur(); // 失去焦点
+    // 如果你希望在按 Esc 时也清空搜索内容，可以取消下面这行的注释
+    // searchInput.value = "";
+    // state.q = "";
+    // state.page = 1;
+    // loadList();
+  }
+});

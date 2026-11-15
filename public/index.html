@@ -18,7 +18,10 @@
     <!-- 左侧主要内容 -->
     <div style="flex: 1; min-width: 0;">
       <section class="toolbar card">
-        <input id="search" type="search" placeholder="搜索标题、说明、代码...">
+        <div class="search-wrapper">
+          <input id="search" type="search" placeholder="搜索标题、说明、代码...">
+          <kbd class="search-kbd">Ctrl K</kbd>
+        </div>
         <select id="language">
           <option value="">全部语言</option>
           <option value="cpp">C++</option>
