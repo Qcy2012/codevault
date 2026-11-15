@@ -188,3 +188,31 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+
+// ==========================================
+// 全局在线状态心跳 (Heartbeat)
+// ==========================================
+function startHeartbeat() {
+  const token = getToken();
+  if (!token) return; // 没登录不发心跳
+
+  // 发送心跳的函数
+  const sendHeartbeat = async () => {
+    try {
+      await fetch(`${API_BASE}/api/users/heartbeat`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+    } catch (e) {
+      // 忽略心跳报错，防止控制台一直红屏
+    }
+  };
+
+  // 页面加载立刻发一次
+  sendHeartbeat();
+
+  // 每 3 分钟发一次心跳（5分钟的统计窗口，3分钟发一次足够安全）
+  setInterval(sendHeartbeat, 3 * 60 * 1000);
+}
+
+document.addEventListener("DOMContentLoaded", startHeartbeat);

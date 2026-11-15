@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS users (
     api_key       TEXT UNIQUE,
     api_key_usage INTEGER NOT NULL DEFAULT 0,
     last_api_call_at TEXT,
+    last_active_at   TEXT,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS snippets (
@@ -87,5 +88,6 @@ try { await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_api_key ON u
 try { await db.execute("ALTER TABLE users ADD COLUMN api_key_usage INTEGER NOT NULL DEFAULT 0"); } catch (e) {}
 try { await db.execute("ALTER TABLE users ADD COLUMN last_api_call_at TEXT"); } catch (e) {}
 try { await db.execute("ALTER TABLE snippets ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"); } catch (e) {}
+try { await db.execute("ALTER TABLE users ADD COLUMN last_active_at TEXT"); } catch (e) {}
 
 export { db };

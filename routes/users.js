@@ -75,4 +75,28 @@ users.get("/api-key", requireAuth, async (c) => {
   return c.json(res.rows[0]);
 });
 
+// 1. 接收前端心跳
+users.post("/heartbeat", requireAuth, async (c) => {
+  const current = c.get("user");
+  await db.execute({
+    sql: "UPDATE users SET last_active_at = datetime('now') WHERE id = ?",
+    args: [current.id]
+  });
+  return c.body(null, 204);
+});
+
+// 2. 获取当前在线人数
+users.get("/online-count", async (c) => {
+  // 统计过去 5 分钟内有活跃记录的用户数
+  const res = await db.execute(
+    "SELECT COUNT(*) as count FROM users WHERE last_active_at >= datetime('now', '-5 minutes')"
+  );
+  
+  // 如果一个人都没在线（比如刚部署），为了好看可以假装有 1 个（就是你自己）
+  let count = Number(res.rows[0]?.count || 0);
+  if (count === 0) count = 1; 
+  
+  return c.json({ count });
+});
+
 export default users;

@@ -111,7 +111,11 @@ function initIndex() {
   });
 
   loadList();
-  loadRanking(); // 如果你有排行榜的话
+  loadRanking();
+
+  loadOnlineCount();
+  // 每 1 分钟刷新一次在线人数展示
+  setInterval(loadOnlineCount, 60 * 1000);
 }
 
 document.addEventListener("DOMContentLoaded", initIndex);
@@ -167,4 +171,18 @@ if (overlay) {
       commandInput.blur();
     }
   });
+}
+
+// ==========================================
+// 在线人数统计
+// ==========================================
+async function loadOnlineCount() {
+  try {
+    const res = await fetch(`${API_BASE}/api/users/online-count`);
+    const data = await res.json();
+    const countEl = document.getElementById("online-count");
+    if (countEl) {
+      countEl.innerText = data.count;
+    }
+  } catch (e) {}
 }

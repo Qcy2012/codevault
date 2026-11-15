@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     api_key       TEXT UNIQUE,
     api_key_usage INTEGER NOT NULL DEFAULT 0,
     last_api_call_at TEXT,
+    last_active_at   TEXT,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS snippets (

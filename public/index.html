@@ -11,7 +11,14 @@
 <body>
   <header class="topbar">
     <a class="logo" href="index.html">CodeVault</a>
-    <nav id="nav-auth"></nav>
+    
+    <!-- 新增：在线人数面板 -->
+    <div id="online-indicator" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); background: rgba(16, 185, 129, 0.1); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.3);">
+      <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px #10b981; animation: pulse 2s infinite;"></span>
+      <span id="online-count">1</span> 人在线
+    </div>
+
+    <nav id="nav-auth" style="margin-left: auto;"></nav>
   </header>
 
   <main class="container" style="display: flex; gap: 24px; align-items: flex-start;">
