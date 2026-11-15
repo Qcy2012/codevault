@@ -85,58 +85,85 @@ function renderSnippet(snippet, root) {
 }
 
 // ==========================================
-// 核心：提取代码大纲
+// 核心：提取代码大纲 (支持 Class / Function / Variable)
 // ==========================================
 function generateOutline(code, lang) {
   const lines = code.split('\n');
   const outlineList = document.getElementById('outline-list');
   const outlineData = [];
 
-  // 不同语言的函数/类正则匹配
-  const regexes = {
-    // C++ 增强版：匹配类/结构体，或者任何看起来像函数定义的语句
-    cpp: /(?:class|struct)\s+([a-zA-Z_]\w*)|(?:[a-zA-Z_][\w:<>*&\s]*?)\s+([a-zA-Z_]\w*)\s*\(/g,
-    // Python：原生支持 def 和 class
-    python: /^\s*(?:def|class)\s+([a-zA-Z_]\w*)/g,
-    // JS 增强版：支持 function 关键字、箭头函数、类
-    javascript: /(?:function)\s+([a-zA-Z_]\w*)|(?:const|let|var)\s+([a-zA-Z_]\w*)\s*=\s*(?:\(|function)|class\s+([a-zA-Z_]\w*)/g,
-    html: /<([a-zA-Z0-9-]+)[^>]*>/g,
-    css: /([\.\#]?[a-zA-Z0-9_-]+)\s*\{/g
-  };
-
-  const regex = regexes[lang] || regexes.cpp;
-
   lines.forEach((line, index) => {
-    let match;
-    // 重置正则的 lastIndex
-    regex.lastIndex = 0; 
-    
-    if ((match = regex.exec(line)) !== null) {
-      // 提取匹配到的名称（可能在第1、2、3个捕获组中）
-      const name = match[1] || match[2] || match[3];
-      
-      // 新增：排除常见的控制流关键字，防止误伤
-      const keywords = ["if", "for", "while", "switch", "catch", "return", "else"];
-      if (name && !keywords.includes(name)) {
-        outlineData.push({
-          name: name,
-          line: index + 1,
-          type: line.includes('class') || line.includes('struct') ? 'class' : 'func'
-        });
+    const trimmed = line.trim();
+    // 忽略空行、预处理指令和常见单行注释
+    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('/*')) return;
+
+    let type = null;
+    let name = null;
+
+    if (lang === 'cpp' || lang === 'other') {
+      // 1. 匹配 Class / Struct（排除变量声明，如 struct xxx * var）
+      if (/(?:class|struct)\s+([a-zA-Z_]\w*)\s*(?:\{|:|$)/.test(trimmed) && !trimmed.includes(';') && !trimmed.includes('*')) {
+        name = trimmed.match(/(?:class|struct)\s+([a-zA-Z_]\w*)/)[1];
+        type = 'class';
       }
+      // 2. 匹配函数定义（特征：包含 () 且带有大括号 {，或者没有分号结尾）
+      else if (/([a-zA-Z_]\w*)\s*\([^)]*\)\s*(?:const)?\s*\{/.test(trimmed) || 
+               (/([a-zA-Z_]\w*)\s*\([^)]*\)\s*$/.test(trimmed) && !trimmed.includes(';'))) {
+        const match = trimmed.match(/([a-zA-Z_]\w*)\s*\(/);
+        if (match) { name = match[1]; type = 'func'; }
+      }
+      // 3. 匹配变量 / 对象实例化（特征：带分号结尾，且包含 = 或 ()）
+      else if (trimmed.endsWith(';') && /([a-zA-Z_]\w*)\s*[=\(]/.test(trimmed)) {
+        // 排除 return 语句和基础控制流
+        if (!trimmed.startsWith('return') && !/^(if|for|while|switch)/.test(trimmed)) {
+          const match = trimmed.match(/([a-zA-Z_]\w*)\s*[=\(]/);
+          if (match) { name = match[1]; type = 'var'; }
+        }
+      }
+    } 
+    else if (lang === 'python') {
+      const match = trimmed.match(/^(?:def|class)\s+([a-zA-Z_]\w*)/);
+      if (match) {
+        name = match[1];
+        type = trimmed.startsWith('class') ? 'class' : 'func';
+      } else if (/^[a-zA-Z_]\w*\s*=/.test(trimmed)) { // 粗略匹配 Python 变量
+        name = trimmed.split('=')[0].trim();
+        type = 'var';
+      }
+    } 
+    else if (lang === 'javascript') {
+      const classMatch = trimmed.match(/^class\s+([a-zA-Z_]\w*)/);
+      const funcMatch = trimmed.match(/^(?:function|const|let|var)\s+([a-zA-Z_]\w*)\s*(?:=|=>|\()/);
+      if (classMatch) { name = classMatch[1]; type = 'class'; }
+      else if (funcMatch) { name = funcMatch[1]; type = 'func'; }
+    }
+
+    // 过滤关键字
+    const keywords = ["if", "for", "while", "switch", "catch", "return", "else", "sizeof"];
+    if (name && !keywords.includes(name)) {
+      outlineData.push({ name, line: index + 1, type });
     }
   });
 
   if (outlineData.length === 0) {
-    outlineList.innerHTML = `<p class="muted" style="font-size: 12px;">未能识别出函数或类</p>`;
+    outlineList.innerHTML = `<p class="muted" style="font-size: 12px;">未能识别出任何符号</p>`;
     return;
   }
 
-  outlineList.innerHTML = outlineData.map(item => `
-    <div class="outline-item" onclick="scrollToLine(${item.line})" title="Line ${item.line}: ${escapeHtml(item.name)}">
-      ${item.type === 'class' ? 'C' : 'F'} ${escapeHtml(item.name)}
-    </div>
-  `).join("");
+  // 渲染大纲（给不同的类型配不同的图标）
+  outlineList.innerHTML = outlineData.map(item => {
+    let icon = 'F'; // 默认函数
+    let title = 'Function';
+    if (item.type === 'class') { icon = 'C'; title = 'Class/Struct'; }
+    if (item.type === 'var') { icon = 'V'; title = 'Variable'; }
+
+    return `
+      <div class="outline-item" onclick="scrollToLine(${item.line})" title="${title}: Line ${item.line}">
+        <span style="opacity: 0.8; margin-right: 4px;">${icon}</span> 
+        <span style="font-family: monospace;">${escapeHtml(item.name)}</span>
+      </div>
+    `;
+  }).join("");
 }
 
 // 点击大纲平滑滚动并高亮
