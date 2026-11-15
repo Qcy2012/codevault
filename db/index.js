@@ -84,6 +84,36 @@ CREATE TABLE IF NOT EXISTS incidents (
     started_at   TEXT NOT NULL DEFAULT (datetime('now')),
     resolved_at  TEXT
 );
+-- 建立 FTS5 虚拟表（使用 trigram 分词器，完美支持代码和中英文字符的模糊匹配）
+CREATE VIRTUAL TABLE IF NOT EXISTS snippets_fts USING fts5(
+    title,
+    description,
+    code,
+    content='snippets',
+    content_rowid='id',
+    tokenize='trigram'
+);
+
+-- 触发器：新增数据时同步
+CREATE TRIGGER IF NOT EXISTS snippets_ai AFTER INSERT ON snippets BEGIN
+  INSERT INTO snippets_fts(rowid, title, description, code) VALUES (new.id, new.title, new.description, new.code);
+END;
+
+-- 触发器：删除数据时同步
+CREATE TRIGGER IF NOT EXISTS snippets_ad AFTER DELETE ON snippets BEGIN
+  INSERT INTO snippets_fts(snippets_fts, rowid, title, description, code) VALUES('delete', old.id, old.title, old.description, old.code);
+END;
+
+-- 触发器：更新数据时同步
+CREATE TRIGGER IF NOT EXISTS snippets_au AFTER UPDATE ON snippets BEGIN
+  INSERT INTO snippets_fts(snippets_fts, rowid, title, description, code) VALUES('delete', old.id, old.title, old.description, old.code);
+  INSERT INTO snippets_fts(rowid, title, description, code) VALUES (new.id, new.title, new.description, new.code);
+END;
+
+-- 将现有的旧数据导入 FTS 引擎（如果表是空的，这句不会有副作用）
+INSERT INTO snippets_fts(rowid, title, description, code)
+SELECT id, title, description, code FROM snippets
+WHERE id NOT IN (SELECT rowid FROM snippets_fts);
 `;
 
 const statements = schema.split(";").map(s => s.trim()).filter(Boolean);

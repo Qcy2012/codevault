@@ -26,9 +26,19 @@ async function loadList() {
 function renderCard(snippet) {
   const tags = snippet.tags.map((tag) => `<span class="tag">${escapeHtml(tag.name)}</span>`).join("");
 
+  // 👇 新增：高亮搜索关键词
+  let titleHtml = escapeHtml(snippet.title);
+  if (state.q) {
+    // 创建一个正则，全局且忽略大小写匹配
+    const regex = new RegExp(`(${state.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi");
+    // 把匹配到的词包上高亮标签
+    titleHtml = titleHtml.replace(regex, `<mark style="background: #fbbf24; color: #000; border-radius: 2px; padding: 0 2px;">$1</mark>`);
+  }
+
   return `
     <article class="card snippet-card">
-      <h2><a href="snippet.html?id=${snippet.id}">${escapeHtml(snippet.title)}</a></h2>
+      <!-- 把 snippet.title 换成 titleHtml -->
+      <h2><a href="snippet.html?id=${snippet.id}">${titleHtml}</a></h2>
       <div class="meta">
         <span class="lang">${escapeHtml(snippet.language)}</span>
         ${tags}

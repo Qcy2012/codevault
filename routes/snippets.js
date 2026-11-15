@@ -200,10 +200,20 @@ snippets.get("/", optionalAuth, async (c) => {
 
   if (language) { conditions.push("s.language = ?"); params.push(language); }
   if (tag) { joinClause += " JOIN snippet_tags st ON st.snippet_id = s.id JOIN tags t ON t.id = st.tag_id "; conditions.push("t.name = ?"); params.push(tag); }
+  
+  let orderByClause = "ORDER BY s.created_at DESC"; // 默认排序
+
   if (q) {
-    conditions.push("(s.title LIKE ? OR s.description LIKE ? OR s.code LIKE ?)");
-    const like = `%${q}%`;
-    params.push(like, like, like);
+    // 防止用户输入 FTS5 的特殊字符（如 +、-、* 等）导致解析报错
+    // 用双引号将整个搜索词包裹，并在末尾加上 * 实现前缀匹配
+    const safeQuery = `"${q.replace(/"/g, '""')}"*`;
+    
+    joinClause += " JOIN snippets_fts fts ON fts.rowid = s.id ";
+    conditions.push("snippets_fts MATCH ?");
+    params.push(safeQuery);
+
+    // 核心：按 FTS5 的 rank 排序（分数越小越相关，所以用 ASC）
+    orderByClause = "ORDER BY rank";
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -221,7 +231,7 @@ snippets.get("/", optionalAuth, async (c) => {
           (SELECT COUNT(*) FROM likes l WHERE l.snippet_id = s.id AND l.user_id = ?) as is_liked
           FROM snippets s JOIN users u ON u.id = s.user_id
           ${joinClause} ${where}
-          ORDER BY s.created_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
+          ${orderByClause} LIMIT ${pageSize} OFFSET ${offset}`,
     args: [currentUserId, ...params]
   });
 
