@@ -94,8 +94,11 @@ function generateOutline(code, lang) {
 
   // 不同语言的函数/类正则匹配
   const regexes = {
-    cpp: /(?:class|struct)\s+([a-zA-Z_]\w*)|(?:void|int|bool|string|double|float|char|auto)\s+([a-zA-Z_]\w*)\s*\(/g,
+    // C++ 增强版：匹配类/结构体，或者任何看起来像函数定义的语句
+    cpp: /(?:class|struct)\s+([a-zA-Z_]\w*)|(?:[a-zA-Z_][\w:<>*&\s]*?)\s+([a-zA-Z_]\w*)\s*\(/g,
+    // Python：原生支持 def 和 class
     python: /^\s*(?:def|class)\s+([a-zA-Z_]\w*)/g,
+    // JS 增强版：支持 function 关键字、箭头函数、类
     javascript: /(?:function)\s+([a-zA-Z_]\w*)|(?:const|let|var)\s+([a-zA-Z_]\w*)\s*=\s*(?:\(|function)|class\s+([a-zA-Z_]\w*)/g,
     html: /<([a-zA-Z0-9-]+)[^>]*>/g,
     css: /([\.\#]?[a-zA-Z0-9_-]+)\s*\{/g
@@ -128,7 +131,7 @@ function generateOutline(code, lang) {
 
   outlineList.innerHTML = outlineData.map(item => `
     <div class="outline-item" onclick="scrollToLine(${item.line})" title="Line ${item.line}: ${escapeHtml(item.name)}">
-      ${item.type === 'class' ? '🏛️' : '🔹'} ${escapeHtml(item.name)}
+      ${item.type === 'class' ? 'C' : 'F'} ${escapeHtml(item.name)}
     </div>
   `).join("");
 }
