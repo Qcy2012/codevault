@@ -12,10 +12,8 @@ async function loadMySnippets() {
   try {
     let data;
     if (currentScope === "trash") {
-      // 请求回收站专属接口
       data = await request("/api/snippets/trash");
     } else {
-      // 请求普通列表接口
       data = await snippetApi.list({ scope: currentScope, page: currentPage, page_size: pageSize });
     }
     
@@ -26,7 +24,6 @@ async function loadMySnippets() {
     }
 
     listEl.innerHTML = data.items.map(snippet => {
-      // 回收站专属操作按钮
       const trashActions = currentScope === "trash" ? `
         <div style="margin-top: 12px; display: flex; gap: 8px;">
           <button onclick="restoreSnippet(${snippet.id})" style="padding: 4px 10px; font-size: 12px; background: linear-gradient(180deg, #10b981 0%, #059669 100%);">恢复</button>
@@ -57,7 +54,7 @@ async function loadMySnippets() {
       document.getElementById("prev").onclick = () => { currentPage--; loadMySnippets(); };
       document.getElementById("next").onclick = () => { currentPage++; loadMySnippets(); };
     } else {
-      pagerEl.innerHTML = ""; // 回收站不分页
+      pagerEl.innerHTML = "";
     }
     
   } catch (error) {
@@ -65,16 +62,15 @@ async function loadMySnippets() {
   }
 }
 
-// 绑定 Tab 切换
 function initMe() {
   if (!getUser()) {
     location.href = "login.html";
     return;
   }
 
-  const devPanel = document.getElementById("dev-panel");
   const listEl = document.getElementById("list");
   const pagerEl = document.getElementById("pager");
+  const devPanel = document.getElementById("dev-panel");
 
   const tabs = {
     mine: document.getElementById("tab-mine"),
@@ -85,8 +81,8 @@ function initMe() {
 
   const setActiveTab = (scope) => {
     currentScope = scope;
-    
-    // 处理面板显示/隐藏
+    currentPage = 1;
+
     if (scope === "dev") {
       listEl.classList.add("hidden");
       pagerEl.classList.add("hidden");
@@ -99,7 +95,13 @@ function initMe() {
     }
 
     Object.keys(tabs).forEach(k => {
-      tabs[k].style.background = k === scope ? "#0284c7" : "#475569";
+      if (k === scope) {
+        tabs[k].classList.add("active");
+        tabs[k].style.background = "#0284c7";
+      } else {
+        tabs[k].classList.remove("active");
+        tabs[k].style.background = "#475569";
+      }
     });
   };
 
@@ -121,7 +123,7 @@ function initMe() {
       const data = await res.json();
       if (data.api_key) {
         document.getElementById("api-key-input").value = data.api_key;
-        showToast("✅ 新 API Key 已生成，旧 Key 已失效");
+        showToast("✅ 新 API Key 已生成");
       }
     } catch (e) {
       showAlert("生成失败");
@@ -131,10 +133,9 @@ function initMe() {
     }
   };
 
-  loadMySnippets();
+  setActiveTab("mine");
 }
 
-// 全局操作函数
 window.restoreSnippet = async (id) => {
   try {
     await request(`/api/snippets/${id}/restore`, { method: "POST" });

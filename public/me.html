@@ -1,13 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <script>
-    document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
-  </script>
+  <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>我的主页 - CodeVault</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.10.0/build/styles/github-dark.min.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -23,6 +20,7 @@
       <button id="tab-mine" class="active">我发布的</button>
       <button id="tab-fav" style="background: #475569;">我收藏的</button>
       <button id="tab-trash" style="background: #475569;">回收站</button>
+      <button id="tab-dev" style="background: #475569;">开发者设置</button>
     </div>
 
     <!-- 开发者设置面板 -->
