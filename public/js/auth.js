@@ -109,3 +109,81 @@ async function handleRegister(event) {
 }
 
 document.addEventListener("DOMContentLoaded", renderNav);
+
+// ==========================================
+// 全局命令面板 (Command Palette)
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+  // 避免重复注入
+  if (document.getElementById("command-palette")) return;
+
+  // 动态注入 HTML
+  const paletteHTML = `
+    <div id="command-palette" class="command-overlay hidden">
+      <div class="command-box">
+        <div class="command-input-wrapper">
+          <svg style="width: 20px; height: 20px; fill: var(--muted); margin-right: 12px;" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input id="command-input" type="text" placeholder="搜索全站代码片段..." autocomplete="off">
+          <span class="command-esc">ESC</span>
+        </div>
+        <div class="command-hints">
+          <span><kbd>Enter</kbd> 搜索</span>
+          <span><kbd>ESC</kbd> 关闭</span>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML("beforeend", paletteHTML);
+
+  const overlay = document.getElementById("command-palette");
+  const commandInput = document.getElementById("command-input");
+
+  // 键盘监听
+  document.addEventListener("keydown", (e) => {
+    // 唤起面板
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      overlay.classList.remove("hidden");
+      setTimeout(() => commandInput.focus(), 50);
+    }
+    // 关闭面板
+    if (e.key === "Escape" && !overlay.classList.contains("hidden")) {
+      overlay.classList.add("hidden");
+      commandInput.blur();
+    }
+  });
+
+  // 点击遮罩层关闭
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) {
+      overlay.classList.add("hidden");
+      commandInput.blur();
+    }
+  });
+
+  // 回车执行搜索
+  commandInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const q = commandInput.value.trim();
+      overlay.classList.add("hidden");
+      commandInput.blur();
+
+      // 智能判断：如果当前在首页，直接刷新列表；如果不在首页，跳转回首页并带上参数
+      const isHome = window.location.pathname.endsWith("index.html") || window.location.pathname === "/" || window.location.pathname.endsWith("/");
+      
+      if (isHome) {
+        // 同步搜索框，触发列表刷新
+        const searchEl = document.getElementById("search");
+        if (searchEl) searchEl.value = q;
+        if (typeof state !== "undefined") {
+          state.q = q;
+          state.page = 1;
+          if (typeof loadList === "function") loadList();
+        }
+      } else {
+        // 跳到首页搜索
+        window.location.href = `index.html?q=${encodeURIComponent(q)}`;
+      }
+    }
+  });
+});
