@@ -9,6 +9,65 @@
   <title>片段详情 - CodeVault</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.10.0/build/styles/github-dark.min.css">
+  <style>
+    /* 新增：代码区与大纲的两栏布局 */
+    .code-layout {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-top: 16px;
+    }
+    .code-area {
+      flex: 1;
+      min-width: 0;
+    }
+    .outline-area {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      position: sticky;
+      top: 24px; /* 悬浮在屏幕上方 */
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+    }
+    .outline-item {
+      display: block;
+      padding: 4px 8px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: all 0.2s;
+    }
+    .outline-item:hover {
+      background: var(--nav-btn-bg);
+      color: #38bdf8;
+    }
+    .outline-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      color: var(--text-color);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+    /* 代码行高亮闪烁动画 */
+    @keyframes flash {
+      0% { background: rgba(56, 189, 248, 0.4); }
+      100% { background: transparent; }
+    }
+    .code-line-flash {
+      animation: flash 1s ease-out;
+      display: inline-block;
+      width: 100%;
+    }
+  </style>
 </head>
 <body>
   <header class="topbar">
