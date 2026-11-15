@@ -130,7 +130,10 @@ snippets.get("/", optionalAuth, async (c) => {
   const conditions = [];
   const params = [];
 
-  if (scope === "mine") {
+  // 如果不是查回收站，默认排除已删除的
+  if (scope !== "trash") {
+    conditions.push("s.is_deleted = 0");
+  } else if (scope === "mine") {
     conditions.push("s.user_id = ?");
     params.push(current.id);
   } else if (scope === "favorites") {
@@ -194,7 +197,7 @@ snippets.get("/:id", optionalAuth, async (c) => {
   const row = res.rows[0];
 
   if (!row) return c.json({ detail: "片段不存在" }, 404);
-  if (!row.is_public && (!current || current.id !== row.user_id)) return c.json({ detail: "片段不存在" }, 404);
+  if (row.is_deleted && (!current || current.id !== row.user_id)) return c.json({ detail: "片段不存在" }, 404);
 
   await db.execute({ sql: "UPDATE snippets SET view_count = view_count + 1 WHERE id = ?", args: [id] });
   row.view_count += 1;
@@ -265,13 +268,58 @@ snippets.put("/:id", requireAuth, async (c) => {
   return c.json({ id, ...body });
 });
 
+// 获取回收站列表
+snippets.get("/trash", requireAuth, async (c) => {
+  const current = c.get("user");
+  const res = await db.execute({
+    sql: `SELECT s.*, u.display_name FROM snippets s 
+          JOIN users u ON u.id = s.user_id
+          WHERE s.user_id = ? AND s.is_deleted = 1 
+          ORDER BY s.updated_at DESC`,
+    args: [current.id]
+  });
+  const tagMap = await loadTagsForSnippets(res.rows.map((r) => r.id));
+  return c.json({
+    items: res.rows.map((r) => rowToSnippet(r, tagMap.get(r.id) || [])),
+    total: res.rows.length, page: 1, page_size: 50
+  });
+});
+
+// 恢复片段
+snippets.post("/:id/restore", requireAuth, async (c) => {
+  const id = Number(c.req.param("id"));
+  const current = c.get("user");
+  const existing = (await db.execute({ sql: "SELECT * FROM snippets WHERE id = ?", args: [id] })).rows[0];
+  
+  if (!existing || existing.user_id !== current.id) return c.json({ detail: "无权操作" }, 403);
+  
+  await db.execute({ sql: "UPDATE snippets SET is_deleted = 0 WHERE id = ?", args: [id] });
+  return c.body(null, 204);
+});
+
+// 彻底删除片段
+snippets.delete("/:id/permanent", requireAuth, async (c) => {
+  const id = Number(c.req.param("id"));
+  const current = c.get("user");
+  const existing = (await db.execute({ sql: "SELECT * FROM snippets WHERE id = ?", args: [id] })).rows[0];
+  
+  if (!existing || existing.user_id !== current.id) return c.json({ detail: "无权操作" }, 403);
+  
+  await db.execute({ sql: "DELETE FROM snippets WHERE id = ?", args: [id] });
+  return c.body(null, 204);
+});
+
 snippets.delete("/:id", requireAuth, async (c) => {
   const id = Number(c.req.param("id"));
   const current = c.get("user");
   const existing = (await db.execute({ sql: "SELECT * FROM snippets WHERE id = ?", args: [id] })).rows[0];
   if (!existing) return c.json({ detail: "片段不存在" }, 404);
   if (existing.user_id !== current.id && !current.is_admin) return c.json({ detail: "无权删除" }, 403);
-  await db.execute({ sql: "DELETE FROM snippets WHERE id = ?", args: [id] });
+  // 软删除：只打标记
+  await db.execute({ 
+    sql: "UPDATE snippets SET is_deleted = 1 WHERE id = ?", 
+    args: [id] 
+  });
   return c.body(null, 204);
 });
 

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS snippets (
     code        TEXT NOT NULL,
     is_public   INTEGER NOT NULL DEFAULT 1,
     view_count  INTEGER NOT NULL DEFAULT 0,
+    is_deleted  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
