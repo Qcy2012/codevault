@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 20px; width: 300px; background: #0f172a; color: #e2e8f0; }
+    input { width: 100%; margin: 8px 0; padding: 8px; background: #1e293b; border: 1px solid #475569; color: #fff; border-radius: 4px; box-sizing: border-box; }
+    button { width: 100%; padding: 10px; background: #0284c7; color: #fff; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+    button:hover { background: #0369a1; }
+  </style>
+</head>
+<body>
+  <h3>CodeVault 设置</h3>
+  
+  <label>服务器地址</label>
+  <input type="text" id="apiUrl" placeholder="http://127.0.0.1:3000 或线上域名">
+  
+  <label>API Key</label>
+  <input type="text" id="apiKey" placeholder="cv_live_xxxxxx">
+  
+  <button id="saveBtn">保存设置</button>
+  <p id="status" style="color: #10b981; font-size: 12px; display: none;">✅ 设置已保存</p>
+
+  <script src="options.js"></script>
+</body>
+</html>

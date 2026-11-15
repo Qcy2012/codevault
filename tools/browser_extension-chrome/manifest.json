@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "CodeVault 代码收集器 for google chrome",
+  "version": "1.0",
+  "description": "一键将网页上的代码保存到 CodeVault",
+  "permissions": [
+    "contextMenus",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "icons": {
+    "128": "icon.png"
+  }
+}
