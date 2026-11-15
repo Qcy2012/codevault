@@ -42,14 +42,25 @@ function renderNav() {
   nav.innerHTML = navHTML;
 
   // 绑定退出事件
-  const logoutBtn = document.getElementById("logout-link");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", (event) => {
-      event.preventDefault();
-      clearAuth();
-      location.href = "index.html";
-    });
-  }
+  document.getElementById("logout-link").addEventListener("click", async (event) => {
+    event.preventDefault();
+    
+    const token = getToken();
+    if (token) {
+      // 先通知后端立刻下线，再去清理本地状态
+      try {
+        await fetch(`${API_BASE}/api/users/offline`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+      } catch (e) {
+        console.error("下线通知失败", e);
+      }
+    }
+    
+    clearAuth();
+    location.href = "index.html";
+  });
 
   // 注入主题切换按钮
   const currentTheme = document.documentElement.getAttribute("data-theme");

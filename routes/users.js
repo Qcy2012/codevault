@@ -99,4 +99,15 @@ users.get("/online-count", async (c) => {
   return c.json({ count });
 });
 
+// 用户主动下线
+users.post("/offline", requireAuth, async (c) => {
+  const current = c.get("user");
+  // 把他的活跃时间直接倒退 10 分钟，立刻失效
+  await db.execute({
+    sql: "UPDATE users SET last_active_at = datetime('now', '-10 minutes') WHERE id = ?",
+    args: [current.id]
+  });
+  return c.body(null, 204);
+});
+
 export default users;
