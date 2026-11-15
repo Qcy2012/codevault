@@ -92,4 +92,14 @@ for (const stmt of statements) {
   }
 }
 
+try {
+  await db.execute("ALTER TABLE snippets ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0");
+  console.log("✅ 成功添加 is_deleted 字段");
+} catch (e) {
+  // 如果字段已经存在，SQLite 会抛出错误，这里直接忽略即可
+  if (!e.message.includes("duplicate column name")) {
+    console.log("迁移检查:", e.message);
+  }
+}
+
 export { db };
