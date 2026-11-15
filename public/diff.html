@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>代码对比 - CodeVault</title>
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- CodeMirror 样式 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+  
+  <style>
+    .diff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .diff-editor-wrapper {
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .CodeMirror {
+      height: 300px;
+      font-family: 'Consolas', 'Cascadia Code', monospace;
+      font-size: 14px;
+    }
+    /* 覆盖 CodeMirror 在浅色模式下的背景 */
+    [data-theme="light"] .CodeMirror {
+      background: #f8fafc;
+      color: #1e293b;
+    }
+    
+    /* 差异结果展示区 */
+    .diff-result-container {
+      background: var(--pre-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: 'Consolas', 'Cascadia Code', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    /* 差异行高亮 */
+    .diff-line {
+      display: block;
+      padding: 0 8px;
+      margin: 0 -8px;
+      border-radius: 4px;
+    }
+    .diff-added {
+      background: rgba(16, 185, 129, 0.2); /* 绿色底 */
+      color: #34d399;
+    }
+    .diff-removed {
+      background: rgba(239, 68, 68, 0.2); /* 红色底 */
+      color: #f87171;
+    }
+    .diff-unchanged {
+      color: var(--text-color);
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="index.html">CodeVault</a>
+    <nav id="nav-auth"></nav>
+  </header>
+
+  <main class="container">
+    <h1>🔍 代码版本对比</h1>
+    <p class="muted" style="margin-bottom: 24px;">粘贴两段代码，查看它们之间的差异。</p>
+
+    <div class="diff-grid">
+      <div>
+        <label style="margin-bottom: 8px; display: block;">原始代码 (Old)</label>
+        <div class="diff-editor-wrapper">
+          <textarea id="diff-old"></textarea>
+        </div>
+      </div>
+      <div>
+        <label style="margin-bottom: 8px; display: block;">修改后的代码 (New)</label>
+        <div class="diff-editor-wrapper">
+          <textarea id="diff-new"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+      <button id="diff-btn" style="padding: 10px 32px; font-size: 16px; border-radius: 8px;">开始对比</button>
+    </div>
+
+    <div id="diff-output" class="diff-result-container hidden">
+      <!-- 对比结果会渲染在这里 -->
+    </div>
+  </main>
+
+  <!-- CodeMirror 核心与依赖 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+  
+  <!-- 引入 jsdiff 库 (Google 开源的字符/行对比算法) -->
+  <script src="https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js"></script>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/diff.js"></script>
+</body>
+</html>

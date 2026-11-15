@@ -22,9 +22,10 @@ function renderNav() {
   const user = getUser();
   
   let navHTML = `
+    <a href="diff.html">代码对比</a>
     <a href="status.html">服务状态</a>
-    <a href="dashboard.html">数据仪表板</a>
     <a href="stats.html">代码统计</a>
+    <a href="dashboard.html">数据仪表板</a>
   `;
 
   if (user) {
