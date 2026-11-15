@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     display_name  TEXT NOT NULL UNIQUE,
     is_admin      INTEGER NOT NULL DEFAULT 0,
+    api_key       TEXT UNIQUE,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS snippets (

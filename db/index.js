@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     display_name  TEXT NOT NULL UNIQUE,
     is_admin      INTEGER NOT NULL DEFAULT 0,
+    api_key       TEXT UNIQUE,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS snippets (
@@ -100,6 +101,13 @@ try {
   if (!e.message.includes("duplicate column name")) {
     console.log("迁移检查:", e.message);
   }
+}
+
+try {
+  await db.execute("ALTER TABLE users ADD COLUMN api_key TEXT UNIQUE");
+  console.log("✅ 成功添加 api_key 字段");
+} catch (e) {
+  if (!e.message.includes("duplicate column name")) console.log("迁移检查:", e.message);
 }
 
 export { db };

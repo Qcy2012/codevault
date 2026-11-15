@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db/index.js";
+import { randomBytes } from "node:crypto";
+import { requireAuth } from "../middleware/auth.js";
 
 const users = new Hono();
 
@@ -43,6 +45,20 @@ users.get("/:id/snippets", async (c) => {
     args: [id]
   });
   return c.json(res.rows);
+});
+
+// 生成或重置 API Key
+users.post("/api-key", requireAuth, async (c) => {
+  const current = c.get("user");
+  // 生成一个类似 cv_live_xxxxxx 的随机字符串
+  const newKey = `cv_live_${randomBytes(16).toString("hex")}`;
+
+  await db.execute({
+    sql: "UPDATE users SET api_key = ? WHERE id = ?",
+    args: [newKey, current.id]
+  });
+
+  return c.json({ api_key: newKey });
 });
 
 export default users;

@@ -72,30 +72,64 @@ function initMe() {
     return;
   }
 
+  const devPanel = document.getElementById("dev-panel");
+  const listEl = document.getElementById("list");
+  const pagerEl = document.getElementById("pager");
+
   const tabs = {
     mine: document.getElementById("tab-mine"),
     favorites: document.getElementById("tab-fav"),
-    trash: document.getElementById("tab-trash")
+    trash: document.getElementById("tab-trash"),
+    dev: document.getElementById("tab-dev")
   };
 
   const setActiveTab = (scope) => {
     currentScope = scope;
-    currentPage = 1;
+    
+    // 处理面板显示/隐藏
+    if (scope === "dev") {
+      listEl.classList.add("hidden");
+      pagerEl.classList.add("hidden");
+      devPanel.classList.remove("hidden");
+    } else {
+      devPanel.classList.add("hidden");
+      listEl.classList.remove("hidden");
+      pagerEl.classList.remove("hidden");
+      loadMySnippets();
+    }
+
     Object.keys(tabs).forEach(k => {
-      if (k === scope) {
-        tabs[k].classList.add("active");
-        tabs[k].style.background = "#0284c7";
-      } else {
-        tabs[k].classList.remove("active");
-        tabs[k].style.background = "#475569";
-      }
+      tabs[k].style.background = k === scope ? "#0284c7" : "#475569";
     });
-    loadMySnippets();
   };
 
   tabs.mine.onclick = () => setActiveTab("mine");
   tabs.favorites.onclick = () => setActiveTab("favorites");
   tabs.trash.onclick = () => setActiveTab("trash");
+  tabs.dev.onclick = () => setActiveTab("dev");
+
+  // 生成 Key 按钮事件
+  document.getElementById("gen-key-btn").onclick = async () => {
+    const btn = document.getElementById("gen-key-btn");
+    btn.disabled = true;
+    btn.textContent = "生成中...";
+    try {
+      const res = await fetch(`${API_BASE}/api/users/api-key`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${getToken()}` }
+      });
+      const data = await res.json();
+      if (data.api_key) {
+        document.getElementById("api-key-input").value = data.api_key;
+        showToast("✅ 新 API Key 已生成，旧 Key 已失效");
+      }
+    } catch (e) {
+      showAlert("生成失败");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "生成新 Key";
+    }
+  };
 
   loadMySnippets();
 }
