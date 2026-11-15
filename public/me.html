@@ -26,13 +26,26 @@
     <!-- 开发者设置面板 -->
     <div id="dev-panel" class="card hidden" style="margin-bottom: 24px;">
       <h3>API Key 管理</h3>
-      <p class="muted" style="font-size: 14px;">使用此 Key 可以通过外部脚本（如 Python、Postman）直接向 CodeVault 推送代码。</p>
+      <p class="muted" style="font-size: 14px;">使用此 Key 可以通过外部脚本（如 JavaScript、Python、Postman）直接向 CodeVault 推送代码。</p>
       
-      <div style="display: flex; gap: 12px; margin-top: 16px;">
+      <!-- 新增：统计数据卡片 -->
+      <div style="display: flex; gap: 16px; margin: 20px 0;">
+        <div style="flex: 1; background: var(--bg-color); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+          <div class="muted" style="font-size: 12px; margin-bottom: 4px;">总调用次数</div>
+          <div id="api-usage-count" style="font-size: 24px; font-weight: bold; color: #38bdf8;">0</div>
+        </div>
+        <div style="flex: 2; background: var(--bg-color); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+          <div class="muted" style="font-size: 12px; margin-bottom: 4px;">最后调用时间</div>
+          <div id="api-last-call" style="font-size: 16px; font-weight: bold; color: var(--text-color);">从未调用</div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px;">
         <input type="text" id="api-key-input" readonly style="flex: 1; font-family: monospace;" placeholder="点击右侧按钮生成...">
         <button id="gen-key-btn">生成新 Key</button>
       </div>
 
+      <!-- 下面的 cURL 示例保持不变 -->
       <div style="margin-top: 24px;">
         <h4>使用示例 (cURL):</h4>
         <pre style="background: var(--pre-bg); padding: 12px; border-radius: 6px; overflow-x: auto;"><code>curl -X POST ${location.origin}/api/snippets \

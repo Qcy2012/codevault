@@ -65,4 +65,14 @@ users.get("/:id/snippets", async (c) => {
   return c.json(res.rows);
 });
 
+// 获取 API Key 使用状态
+users.get("/api-key", requireAuth, async (c) => {
+  const current = c.get("user");
+  const res = await db.execute({
+    sql: "SELECT api_key, api_key_usage, last_api_call_at FROM users WHERE id = ?",
+    args: [current.id]
+  });
+  return c.json(res.rows[0]);
+});
+
 export default users;

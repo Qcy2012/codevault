@@ -62,6 +62,34 @@ async function loadMySnippets() {
   }
 }
 
+async function loadApiStats() {
+  try {
+    const res = await fetch(`${API_BASE}/api/users/api-key`, {
+      headers: { "Authorization": `Bearer ${getToken()}` }
+    });
+    const data = await res.json();
+    
+    if (res.ok) {
+      // 更新 Key 输入框
+      document.getElementById("api-key-input").value = data.api_key || "";
+      
+      // 更新统计数据
+      document.getElementById("api-usage-count").innerText = data.api_key_usage || 0;
+      
+      // 格式化时间
+      if (data.last_api_call_at) {
+        // 补齐时区 Z
+        const isoStr = data.last_api_call_at.replace(' ', 'T') + 'Z';
+        document.getElementById("api-last-call").innerText = new Date(isoStr).toLocaleString('zh-CN', { hour12: false });
+      } else {
+        document.getElementById("api-last-call").innerText = "从未调用";
+      }
+    }
+  } catch (e) {
+    console.error("加载 API 统计失败", e);
+  }
+}
+
 function initMe() {
   if (!getUser()) {
     location.href = "login.html";
@@ -83,11 +111,12 @@ function initMe() {
     currentScope = scope;
     currentPage = 1;
 
-    // 👇 使用强制隐藏类，彻底解决重叠
+    // 使用强制隐藏类，彻底解决重叠
     if (scope === "dev") {
       listEl.classList.add("hidden-force");
       pagerEl.classList.add("hidden-force");
       devPanel.classList.remove("hidden");
+      loadApiStats(); // <- 新增：每次切换到面板时加载最新数据
     } else {
       devPanel.classList.add("hidden");
       listEl.classList.remove("hidden-force");
@@ -126,7 +155,7 @@ function initMe() {
         document.getElementById("api-key-input").value = data.api_key;
         showToast("✅ 新 API Key 已生成");
       } else {
-        // 👇 把具体的 500 报错原因弹出来
+        // 把具体的 500 报错原因弹出来
         showAlert(`错误: ${data.detail || data.error || "生成失败"}`);
       }
     } catch (e) {

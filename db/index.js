@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS users (
     display_name  TEXT NOT NULL UNIQUE,
     is_admin      INTEGER NOT NULL DEFAULT 0,
     api_key       TEXT UNIQUE,
+    api_key_usage INTEGER NOT NULL DEFAULT 0,
+    last_api_call_at TEXT,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS snippets (
@@ -109,5 +111,13 @@ try {
 } catch (e) {
   if (!e.message.includes("duplicate column name")) console.log("迁移检查:", e.message);
 }
+
+try {
+  await db.execute("ALTER TABLE users ADD COLUMN api_key_usage INTEGER NOT NULL DEFAULT 0");
+} catch (e) { /* 忽略 */ }
+
+try {
+  await db.execute("ALTER TABLE users ADD COLUMN last_api_call_at TEXT");
+} catch (e) { /* 忽略 */ }
 
 export { db };
