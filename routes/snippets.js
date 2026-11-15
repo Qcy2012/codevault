@@ -68,10 +68,9 @@ async function getOrCreateTags(names) {
 }
 
 // ==========================================
-// 回收站专属路由 (必须放在 /:id 路由之前)
+// 回收站专属路由 (必须在 /:id 之前)
 // ==========================================
 
-// 获取回收站列表
 snippets.get("/trash", requireAuth, async (c) => {
   const current = c.get("user");
   const res = await db.execute({
@@ -88,7 +87,6 @@ snippets.get("/trash", requireAuth, async (c) => {
   });
 });
 
-// 恢复片段
 snippets.post("/:id/restore", requireAuth, async (c) => {
   const id = Number(c.req.param("id"));
   const current = c.get("user");
@@ -100,7 +98,6 @@ snippets.post("/:id/restore", requireAuth, async (c) => {
   return c.body(null, 204);
 });
 
-// 彻底删除片段
 snippets.delete("/:id/permanent", requireAuth, async (c) => {
   const id = Number(c.req.param("id"));
   const current = c.get("user");
@@ -161,10 +158,9 @@ snippets.delete("/comments/:commentId", requireAuth, async (c) => {
 });
 
 // ==========================================
-// 片段列表与详情
+// 列表与详情
 // ==========================================
 
-// 获取列表
 snippets.get("/", optionalAuth, async (c) => {
   const q = c.req.query("q")?.trim() || "";
   const language = c.req.query("language") || "";
@@ -182,7 +178,6 @@ snippets.get("/", optionalAuth, async (c) => {
   const conditions = [];
   const params = [];
 
-  // 修正后的 Scope 判断逻辑
   if (scope === "mine") {
     conditions.push("s.user_id = ?");
     conditions.push("s.is_deleted = 0");
@@ -193,7 +188,6 @@ snippets.get("/", optionalAuth, async (c) => {
     conditions.push("s.is_deleted = 0");
     params.push(current.id);
   } else {
-    // 默认公开列表
     conditions.push("s.is_public = 1");
     conditions.push("s.is_deleted = 0");
   }
@@ -201,19 +195,11 @@ snippets.get("/", optionalAuth, async (c) => {
   if (language) { conditions.push("s.language = ?"); params.push(language); }
   if (tag) { joinClause += " JOIN snippet_tags st ON st.snippet_id = s.id JOIN tags t ON t.id = st.tag_id "; conditions.push("t.name = ?"); params.push(tag); }
   
-  let orderByClause = "ORDER BY s.created_at DESC"; // 默认排序
-
+  // 恢复为 LIKE 模糊搜索
   if (q) {
-    // 防止用户输入 FTS5 的特殊字符（如 +、-、* 等）导致解析报错
-    // 用双引号将整个搜索词包裹，并在末尾加上 * 实现前缀匹配
-    const safeQuery = `"${q.replace(/"/g, '""')}"*`;
-    
-    joinClause += " JOIN snippets_fts fts ON fts.rowid = s.id ";
-    conditions.push("snippets_fts MATCH ?");
-    params.push(safeQuery);
-
-    // 核心：按 FTS5 的 rank 排序（分数越小越相关，所以用 ASC）
-    orderByClause = "ORDER BY rank";
+    conditions.push("(s.title LIKE ? OR s.description LIKE ? OR s.code LIKE ?)");
+    const like = `%${q}%`;
+    params.push(like, like, like);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -231,7 +217,7 @@ snippets.get("/", optionalAuth, async (c) => {
           (SELECT COUNT(*) FROM likes l WHERE l.snippet_id = s.id AND l.user_id = ?) as is_liked
           FROM snippets s JOIN users u ON u.id = s.user_id
           ${joinClause} ${where}
-          ${orderByClause} LIMIT ${pageSize} OFFSET ${offset}`,
+          ORDER BY s.created_at DESC LIMIT ${pageSize} OFFSET ${offset}`,
     args: [currentUserId, ...params]
   });
 
@@ -242,7 +228,6 @@ snippets.get("/", optionalAuth, async (c) => {
   });
 });
 
-// 获取详情（带点赞）
 snippets.get("/:id", optionalAuth, async (c) => {
   const id = Number(c.req.param("id"));
   if (!id) return c.json({ detail: "无效的片段 ID" }, 400);
@@ -261,7 +246,6 @@ snippets.get("/:id", optionalAuth, async (c) => {
   const row = res.rows[0];
 
   if (!row) return c.json({ detail: "片段不存在" }, 404);
-  // 如果是已删除的，只有作者自己能看到
   if (row.is_deleted && (!current || current.id !== row.user_id)) return c.json({ detail: "片段不存在" }, 404);
 
   await db.execute({ sql: "UPDATE snippets SET view_count = view_count + 1 WHERE id = ?", args: [id] });
@@ -337,7 +321,6 @@ snippets.put("/:id", requireAuth, async (c) => {
   return c.json({ id, ...body });
 });
 
-// 软删除（移入回收站）
 snippets.delete("/:id", requireAuth, async (c) => {
   const id = Number(c.req.param("id"));
   const current = c.get("user");
@@ -345,15 +328,12 @@ snippets.delete("/:id", requireAuth, async (c) => {
   if (!existing) return c.json({ detail: "片段不存在" }, 404);
   if (existing.user_id !== current.id && !current.is_admin) return c.json({ detail: "无权删除" }, 403);
   
-  await db.execute({ 
-    sql: "UPDATE snippets SET is_deleted = 1 WHERE id = ?", 
-    args: [id] 
-  });
+  await db.execute({ sql: "UPDATE snippets SET is_deleted = 1 WHERE id = ?", args: [id] });
   return c.body(null, 204);
 });
 
 // ==========================================
-// 互动功能（收藏、点赞）
+// 互动（收藏、点赞）
 // ==========================================
 
 snippets.post("/:id/favorite", requireAuth, async (c) => {
