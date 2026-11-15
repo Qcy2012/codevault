@@ -85,62 +85,75 @@ function renderSnippet(snippet, root) {
 }
 
 // ==========================================
-// 核心：提取代码大纲 (支持 Class / Function / Variable)
+// 核心：提取代码大纲 (高级启发式解析版)
 // ==========================================
 function generateOutline(code, lang) {
   const lines = code.split('\n');
   const outlineList = document.getElementById('outline-list');
   const outlineData = [];
+  
+  // 用 Set 去重，防止同一个变量被多次赋值导致重复显示
+  const seenSymbols = new Set();
+  // 记录遇到过的符号名，方便后续过滤函数调用
+  const declaredVariables = new Set();
+
+  // 提前扫描一遍，收集所有被声明过的变量名（方便过滤掉函数调用）
+  lines.forEach(line => {
+    const varMatch = line.match(/(?:int|double|float|char|bool|void|auto|size_t|string|vector|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)/);
+    if (varMatch) declaredVariables.add(varMatch[1]);
+  });
 
   lines.forEach((line, index) => {
     const trimmed = line.trim();
-    // 忽略空行、预处理指令和常见单行注释
+    // 1. 过滤空行、注释、预处理、宏、以及控制流关键字开头
     if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('/*')) return;
+    if (/^(return|if|for|while|switch|catch|else|using|namespace|typedef|template)\b/.test(trimmed)) return;
 
     let type = null;
     let name = null;
 
     if (lang === 'cpp' || lang === 'other') {
-      // 1. 匹配 Class / Struct（排除变量声明，如 struct xxx * var）
-      if (/(?:class|struct)\s+([a-zA-Z_]\w*)\s*(?:\{|:|$)/.test(trimmed) && !trimmed.includes(';') && !trimmed.includes('*')) {
+      // 2. 匹配 Class / Struct 定义
+      if (/(?:^|\s)(?:class|struct)\s+([a-zA-Z_]\w*)\s*(?:\{|:|$)/.test(trimmed) && !trimmed.includes(';')) {
         name = trimmed.match(/(?:class|struct)\s+([a-zA-Z_]\w*)/)[1];
         type = 'class';
+      } 
+      // 3. 匹配函数定义 (必须以 { 结尾，或者包含 () 且没有分号)
+      else if (/([a-zA-Z_]\w*)\s*\([^)]*\)\s*(?:const)?\s*\{/.test(trimmed)) {
+        name = trimmed.match(/([a-zA-Z_]\w*)\s*\(/)[1];
+        type = 'func';
       }
-      // 2. 匹配函数定义（特征：包含 () 且带有大括号 {，或者没有分号结尾）
-      else if (/([a-zA-Z_]\w*)\s*\([^)]*\)\s*(?:const)?\s*\{/.test(trimmed) || 
-               (/([a-zA-Z_]\w*)\s*\([^)]*\)\s*$/.test(trimmed) && !trimmed.includes(';'))) {
-        const match = trimmed.match(/([a-zA-Z_]\w*)\s*\(/);
-        if (match) { name = match[1]; type = 'func'; }
-      }
-      // 3. 匹配变量 / 对象实例化（特征：带分号结尾，且包含 = 或 ()）
-      else if (trimmed.endsWith(';') && /([a-zA-Z_]\w*)\s*[=\(]/.test(trimmed)) {
-        // 排除 return 语句和基础控制流
-        if (!trimmed.startsWith('return') && !/^(if|for|while|switch)/.test(trimmed)) {
-          const match = trimmed.match(/([a-zA-Z_]\w*)\s*[=\(]/);
-          if (match) { name = match[1]; type = 'var'; }
-        }
+      // 4. 匹配变量声明 (必须是 类型 + 空格 + 变量名 + = 或 ( 或 ;)
+      else if (/(?:int|double|float|char|bool|auto|size_t|string|vector|map|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)\s*(?:=|\(|;)/.test(trimmed)) {
+        name = trimmed.match(/(?:int|double|float|char|bool|auto|size_t|string|vector|map|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)/)[1];
+        type = 'var';
       }
     } 
     else if (lang === 'python') {
+      // Python 逻辑
       const match = trimmed.match(/^(?:def|class)\s+([a-zA-Z_]\w*)/);
       if (match) {
         name = match[1];
         type = trimmed.startsWith('class') ? 'class' : 'func';
-      } else if (/^[a-zA-Z_]\w*\s*=/.test(trimmed)) { // 粗略匹配 Python 变量
+      } else if (/^[a-zA-Z_]\w*\s*=[^=]/.test(trimmed)) {
         name = trimmed.split('=')[0].trim();
         type = 'var';
       }
     } 
     else if (lang === 'javascript') {
+      // JS 逻辑
       const classMatch = trimmed.match(/^class\s+([a-zA-Z_]\w*)/);
       const funcMatch = trimmed.match(/^(?:function|const|let|var)\s+([a-zA-Z_]\w*)\s*(?:=|=>|\()/);
       if (classMatch) { name = classMatch[1]; type = 'class'; }
       else if (funcMatch) { name = funcMatch[1]; type = 'func'; }
     }
 
-    // 过滤关键字
-    const keywords = ["if", "for", "while", "switch", "catch", "return", "else", "sizeof"];
-    if (name && !keywords.includes(name)) {
+    // 5. 最终校验与排重
+    if (name && !seenSymbols.has(name)) {
+      // 如果是变量，且名字属于声明过的变量（进一步排除函数调用）
+      if (type === 'var' && !declaredVariables.has(name)) return;
+
+      seenSymbols.add(name);
       outlineData.push({ name, line: index + 1, type });
     }
   });
@@ -150,12 +163,12 @@ function generateOutline(code, lang) {
     return;
   }
 
-  // 渲染大纲（给不同的类型配不同的图标）
+  // 渲染大纲
   outlineList.innerHTML = outlineData.map(item => {
-    let icon = 'F'; // 默认函数
+    let icon = '🔹'; 
     let title = 'Function';
-    if (item.type === 'class') { icon = 'C'; title = 'Class/Struct'; }
-    if (item.type === 'var') { icon = 'V'; title = 'Variable'; }
+    if (item.type === 'class') { icon = '🏛️'; title = 'Class/Struct'; }
+    if (item.type === 'var') { icon = '📦'; title = 'Variable'; }
 
     return `
       <div class="outline-item" onclick="scrollToLine(${item.line})" title="${title}: Line ${item.line}">
