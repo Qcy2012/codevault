@@ -85,19 +85,17 @@ function renderSnippet(snippet, root) {
 }
 
 // ==========================================
-// 核心：提取代码大纲 (高级启发式解析版)
+// 核心：提取代码大纲 (单字母标识版)
 // ==========================================
 function generateOutline(code, lang) {
   const lines = code.split('\n');
   const outlineList = document.getElementById('outline-list');
   const outlineData = [];
   
-  // 用 Set 去重，防止同一个变量被多次赋值导致重复显示
   const seenSymbols = new Set();
-  // 记录遇到过的符号名，方便后续过滤函数调用
   const declaredVariables = new Set();
 
-  // 提前扫描一遍，收集所有被声明过的变量名（方便过滤掉函数调用）
+  // 收集所有被声明过的变量名
   lines.forEach(line => {
     const varMatch = line.match(/(?:int|double|float|char|bool|void|auto|size_t|string|vector|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)/);
     if (varMatch) declaredVariables.add(varMatch[1]);
@@ -105,32 +103,36 @@ function generateOutline(code, lang) {
 
   lines.forEach((line, index) => {
     const trimmed = line.trim();
-    // 1. 过滤空行、注释、预处理、宏、以及控制流关键字开头
+    // 过滤空行、注释、预处理，注意：把 namespace 从黑名单里去掉了
     if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('/*')) return;
-    if (/^(return|if|for|while|switch|catch|else|using|namespace|typedef|template)\b/.test(trimmed)) return;
+    if (/^(return|if|for|while|switch|catch|else|using|typedef|template)\b/.test(trimmed)) return;
 
     let type = null;
     let name = null;
 
     if (lang === 'cpp' || lang === 'other') {
-      // 2. 匹配 Class / Struct 定义
-      if (/(?:^|\s)(?:class|struct)\s+([a-zA-Z_]\w*)\s*(?:\{|:|$)/.test(trimmed) && !trimmed.includes(';')) {
+      // 1. 匹配命名空间
+      if (/^namespace\s+([a-zA-Z_]\w*)/.test(trimmed)) {
+        name = trimmed.match(/^namespace\s+([a-zA-Z_]\w*)/)[1];
+        type = 'namespace';
+      }
+      // 2. 匹配 Class / Struct
+      else if (/(?:^|\s)(?:class|struct)\s+([a-zA-Z_]\w*)\s*(?:\{|:|$)/.test(trimmed) && !trimmed.includes(';')) {
         name = trimmed.match(/(?:class|struct)\s+([a-zA-Z_]\w*)/)[1];
         type = 'class';
       } 
-      // 3. 匹配函数定义 (必须以 { 结尾，或者包含 () 且没有分号)
+      // 3. 匹配函数
       else if (/([a-zA-Z_]\w*)\s*\([^)]*\)\s*(?:const)?\s*\{/.test(trimmed)) {
         name = trimmed.match(/([a-zA-Z_]\w*)\s*\(/)[1];
         type = 'func';
       }
-      // 4. 匹配变量声明 (必须是 类型 + 空格 + 变量名 + = 或 ( 或 ;)
+      // 4. 匹配变量
       else if (/(?:int|double|float|char|bool|auto|size_t|string|vector|map|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)\s*(?:=|\(|;)/.test(trimmed)) {
         name = trimmed.match(/(?:int|double|float|char|bool|auto|size_t|string|vector|map|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)/)[1];
         type = 'var';
       }
     } 
     else if (lang === 'python') {
-      // Python 逻辑
       const match = trimmed.match(/^(?:def|class)\s+([a-zA-Z_]\w*)/);
       if (match) {
         name = match[1];
@@ -141,18 +143,15 @@ function generateOutline(code, lang) {
       }
     } 
     else if (lang === 'javascript') {
-      // JS 逻辑
       const classMatch = trimmed.match(/^class\s+([a-zA-Z_]\w*)/);
       const funcMatch = trimmed.match(/^(?:function|const|let|var)\s+([a-zA-Z_]\w*)\s*(?:=|=>|\()/);
       if (classMatch) { name = classMatch[1]; type = 'class'; }
       else if (funcMatch) { name = funcMatch[1]; type = 'func'; }
     }
 
-    // 5. 最终校验与排重
+    // 最终校验与排重
     if (name && !seenSymbols.has(name)) {
-      // 如果是变量，且名字属于声明过的变量（进一步排除函数调用）
       if (type === 'var' && !declaredVariables.has(name)) return;
-
       seenSymbols.add(name);
       outlineData.push({ name, line: index + 1, type });
     }
@@ -163,16 +162,19 @@ function generateOutline(code, lang) {
     return;
   }
 
-  // 渲染大纲
+  // 渲染大纲：用 F, C, V, N 代替原本的 Emoji
   outlineList.innerHTML = outlineData.map(item => {
-    let icon = '🔹'; 
+    let letter = 'F'; 
+    let color = '#38bdf8'; // 默认蓝色
     let title = 'Function';
-    if (item.type === 'class') { icon = '🏛️'; title = 'Class/Struct'; }
-    if (item.type === 'var') { icon = '📦'; title = 'Variable'; }
+
+    if (item.type === 'class') { letter = 'C'; color = '#fbbf24'; title = 'Class/Struct'; }
+    if (item.type === 'var') { letter = 'V'; color = '#10b981'; title = 'Variable'; }
+    if (item.type === 'namespace') { letter = 'N'; color = '#a78bfa'; title = 'Namespace'; }
 
     return `
       <div class="outline-item" onclick="scrollToLine(${item.line})" title="${title}: Line ${item.line}">
-        <span style="opacity: 0.8; margin-right: 4px;">${icon}</span> 
+        <span style="color: ${color}; font-weight: 900; font-family: monospace; margin-right: 6px;">${letter}</span> 
         <span style="font-family: monospace;">${escapeHtml(item.name)}</span>
       </div>
     `;
