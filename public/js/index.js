@@ -99,34 +99,87 @@ function initIndex() {
 document.addEventListener("DOMContentLoaded", initIndex);
 
 // ==========================================
-// 全局快捷键：Ctrl+K 聚焦搜索，Esc 清空失焦
+// 全局命令面板逻辑
 // ==========================================
 document.addEventListener("keydown", (e) => {
-  const searchInput = document.getElementById("search");
-  if (!searchInput) return; // 如果当前页面没有搜索框则跳过
+  const overlay = document.getElementById("command-palette");
+  const commandInput = document.getElementById("command-input");
+  if (!overlay || !commandInput) return;
 
-  // 监听 Ctrl+K (Windows) 或 Cmd+K (Mac)
+  // 监听 Ctrl+K 或 Cmd+K
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-    e.preventDefault(); // 阻止浏览器默认的搜索行为
-    
-    // 聚焦搜索框
-    searchInput.focus();
-    searchInput.select(); // 全选已有文字，方便直接覆盖输入
-    
-    // 添加一个发光聚焦动画
-    searchInput.style.boxShadow = "0 0 0 3px rgba(56, 189, 248, 0.3)";
-    setTimeout(() => {
-      searchInput.style.boxShadow = "";
-    }, 500);
+    e.preventDefault();
+    overlay.classList.remove("hidden");
+    // 稍微延迟以配合 CSS 动画聚焦
+    setTimeout(() => commandInput.focus(), 50);
   }
 
-  // 监听 Esc
-  if (e.key === "Escape" && document.activeElement === searchInput) {
-    searchInput.blur(); // 失去焦点
-    // 如果你希望在按 Esc 时也清空搜索内容，可以取消下面这行的注释
-    // searchInput.value = "";
-    // state.q = "";
-    // state.page = 1;
-    // loadList();
+  // 监听 Esc 关闭
+  if (e.key === "Escape" && !overlay.classList.contains("hidden")) {
+    overlay.classList.add("hidden");
+    commandInput.blur();
   }
 });
+
+// 绑定点击遮罩层关闭
+const overlay = document.getElementById("command-palette");
+if (overlay) {
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) {
+      overlay.classList.add("hidden");
+      document.getElementById("command-input").blur();
+    }
+  });
+
+  // 绑定回车搜索事件
+  const commandInput = document.getElementById("command-input");
+  commandInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const q = commandInput.value.trim();
+      // 1. 将值同步给原搜索框和 state
+      document.getElementById("search").value = q;
+      state.q = q;
+      state.page = 1;
+      
+      // 2. 触发列表刷新
+      loadList();
+      
+      // 3. 关闭面板
+      overlay.classList.add("hidden");
+      commandInput.blur();
+    }
+  });
+}
+
+// ==========================================
+// 全局快捷键：Ctrl+K 聚焦搜索，Esc 清空失焦
+// ==========================================
+// document.addEventListener("keydown", (e) => {
+//   const searchInput = document.getElementById("search");
+//   if (!searchInput) return; // 如果当前页面没有搜索框则跳过
+
+//   // 监听 Ctrl+K (Windows) 或 Cmd+K (Mac)
+//   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+//     e.preventDefault(); // 阻止浏览器默认的搜索行为
+    
+//     // 聚焦搜索框
+//     searchInput.focus();
+//     searchInput.select(); // 全选已有文字，方便直接覆盖输入
+    
+//     // 添加一个发光聚焦动画
+//     searchInput.style.boxShadow = "0 0 0 3px rgba(56, 189, 248, 0.3)";
+//     setTimeout(() => {
+//       searchInput.style.boxShadow = "";
+//     }, 500);
+//   }
+
+//   // 监听 Esc
+//   if (e.key === "Escape" && document.activeElement === searchInput) {
+//     searchInput.blur(); // 失去焦点
+//     // 如果你希望在按 Esc 时也清空搜索内容，可以取消下面这行的注释
+//     // searchInput.value = "";
+//     // state.q = "";
+//     // state.page = 1;
+//     // loadList();
+//   }
+// });
