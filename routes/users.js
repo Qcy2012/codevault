@@ -1,11 +1,29 @@
 import { Hono } from "hono";
 import { db } from "../db/index.js";
-import { randomBytes } from "node:crypto";
 import { requireAuth } from "../middleware/auth.js";
+import { randomBytes } from "node:crypto";
 
 const users = new Hono();
 
-// 获取排行榜 (修复了复杂子查询导致的 500 崩溃)
+// 生成或重置 API Key (放在 /:id 之前防止被误匹配)
+users.post("/api-key", requireAuth, async (c) => {
+  try {
+    const current = c.get("user");
+    const newKey = `cv_live_${randomBytes(16).toString("hex")}`;
+
+    await db.execute({
+      sql: "UPDATE users SET api_key = ? WHERE id = ?",
+      args: [newKey, current.id]
+    });
+
+    return c.json({ api_key: newKey });
+  } catch (error) {
+    console.error("生成 API Key 失败:", error);
+    return c.json({ detail: error.message }, 500);
+  }
+});
+
+// 获取排行榜
 users.get("/ranking", async (c) => {
   const res = await db.execute(`
     SELECT u.id, u.display_name, 
@@ -45,20 +63,6 @@ users.get("/:id/snippets", async (c) => {
     args: [id]
   });
   return c.json(res.rows);
-});
-
-// 生成或重置 API Key
-users.post("/api-key", requireAuth, async (c) => {
-  const current = c.get("user");
-  // 生成一个类似 cv_live_xxxxxx 的随机字符串
-  const newKey = `cv_live_${randomBytes(16).toString("hex")}`;
-
-  await db.execute({
-    sql: "UPDATE users SET api_key = ? WHERE id = ?",
-    args: [newKey, current.id]
-  });
-
-  return c.json({ api_key: newKey });
 });
 
 export default users;

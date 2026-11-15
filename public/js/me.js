@@ -83,14 +83,15 @@ function initMe() {
     currentScope = scope;
     currentPage = 1;
 
+    // 强制控制 display，彻底解决重叠问题
     if (scope === "dev") {
-      listEl.classList.add("hidden");
-      pagerEl.classList.add("hidden");
-      devPanel.classList.remove("hidden");
+      listEl.style.display = "none";
+      pagerEl.style.display = "none";
+      devPanel.style.display = "block";
     } else {
-      devPanel.classList.add("hidden");
-      listEl.classList.remove("hidden");
-      pagerEl.classList.remove("hidden");
+      devPanel.style.display = "none";
+      listEl.style.display = "flex"; // .list 默认是 flex 布局
+      pagerEl.style.display = "flex"; // .pager 默认是 flex 布局
       loadMySnippets();
     }
 
@@ -124,18 +125,22 @@ function initMe() {
       if (data.api_key) {
         document.getElementById("api-key-input").value = data.api_key;
         showToast("✅ 新 API Key 已生成");
+      } else {
+        showAlert(data.detail || "生成失败");
       }
     } catch (e) {
-      showAlert("生成失败");
+      showAlert("网络请求失败");
     } finally {
       btn.disabled = false;
       btn.textContent = "生成新 Key";
     }
   };
 
+  // 初始化默认面板
   setActiveTab("mine");
 }
 
+// 恢复和彻底删除逻辑保持不变
 window.restoreSnippet = async (id) => {
   try {
     await request(`/api/snippets/${id}/restore`, { method: "POST" });
