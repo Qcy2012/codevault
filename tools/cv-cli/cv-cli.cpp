@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
         long httpCode = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
         if (httpCode == 201) {
-            cout << "[INFO] Push sccessfully£¡\n";
+            cout << "[INFO] Push sccessfully!\n";
         } else {
             cout << "[ERROR] Push failed,HTTP code: " << httpCode << "\n";
             cout << "[ERROR] The server returns: " << readBuffer << "\n";
