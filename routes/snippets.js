@@ -248,11 +248,26 @@ snippets.get("/:id", optionalAuth, async (c) => {
   if (!row) return c.json({ detail: "片段不存在" }, 404);
   if (row.is_deleted && (!current || current.id !== row.user_id)) return c.json({ detail: "片段不存在" }, 404);
 
+  // 查询附加文件
+  const filesRes = await db.execute({
+    sql: "SELECT filename, language, code FROM snippet_files WHERE snippet_id = ? ORDER BY id ASC",
+    args: [id]
+  });
+
   await db.execute({ sql: "UPDATE snippets SET view_count = view_count + 1 WHERE id = ?", args: [id] });
   row.view_count += 1;
   
   const tagMap = await loadTagsForSnippets([id]);
-  return c.json(rowToSnippet(row, tagMap.get(id) || []));
+  const snippetData = rowToSnippet(row, tagMap.get(id) || []);
+  
+  // 组装 files 数组（如果老数据没有 files，就把主 code 包装成一个文件）
+  if (filesRes.rows.length > 0) {
+    snippetData.files = filesRes.rows.map(f => ({ filename: f.filename, language: f.language, code: f.code }));
+  } else {
+    snippetData.files = [{ filename: `main.${row.language === 'cpp' ? 'cpp' : row.language}`, language: row.language, code: row.code }];
+  }
+
+  return c.json(snippetData);
 });
 
 // ==========================================
@@ -265,25 +280,38 @@ snippets.post("/", requireAuth, async (c) => {
 
   const title = (body.title || "").trim();
   const language = (body.language || "").trim();
-  const code = body.code || "";
-  if (!title || !language || !code) return c.json({ detail: "标题、语言、代码不能为空" }, 400);
+  // 如果传了 files 数组，主代码提取第一个文件的内容
+  const files = body.files || [];
+  const mainCode = files.length > 0 ? files[0].code : (body.code || "");
+  
+  if (!title || !language || !mainCode) return c.json({ detail: "标题、语言、主代码不能为空" }, 400);
 
   const current = c.get("user");
   const isPublic = body.is_public !== false ? 1 : 0;
 
   const result = await db.execute({
     sql: `INSERT INTO snippets (user_id, title, description, language, code, is_public) VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [current.id, title, body.description || null, language, code, isPublic]
+    args: [current.id, title, body.description || null, language, mainCode, isPublic]
   });
 
   const snippetId = Number(result.lastInsertRowid);
-  const tags = await getOrCreateTags(body.tags || []);
 
+  // 插入多文件记录
+  if (files.length > 0) {
+    for (const f of files) {
+      await db.execute({
+        sql: "INSERT INTO snippet_files (snippet_id, filename, language, code) VALUES (?, ?, ?, ?)",
+        args: [snippetId, f.filename, f.language, f.code]
+      });
+    }
+  }
+
+  const tags = await getOrCreateTags(body.tags || []);
   for (const tag of tags) {
     await db.execute({ sql: "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING", args: [snippetId, tag.id] });
   }
 
-  return c.json({ id: snippetId, title, language, code, is_public: Boolean(isPublic), owner: { id: current.id, display_name: current.display_name }, tags }, 201);
+  return c.json({ id: snippetId, title, language, code: mainCode, is_public: Boolean(isPublic), owner: { id: current.id, display_name: current.display_name }, tags }, 201);
 });
 
 snippets.put("/:id", requireAuth, async (c) => {
@@ -310,11 +338,13 @@ snippets.put("/:id", requireAuth, async (c) => {
     await db.execute({ sql: `UPDATE snippets SET ${fields.join(", ")} WHERE id = ?`, args: values });
   }
 
-  if (Array.isArray(body.tags)) {
-    await db.execute({ sql: "DELETE FROM snippet_tags WHERE snippet_id = ?", args: [id] });
-    const tags = await getOrCreateTags(body.tags);
-    for (const tag of tags) {
-      await db.execute({ sql: "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING", args: [id, tag.id] });
+  if (Array.isArray(body.files)) {
+    await db.execute({ sql: "DELETE FROM snippet_files WHERE snippet_id = ?", args: [id] });
+    for (const f of body.files) {
+      await db.execute({
+        sql: "INSERT INTO snippet_files (snippet_id, filename, language, code) VALUES (?, ?, ?, ?)",
+        args: [id, f.filename, f.language, f.code]
+      });
     }
   }
 

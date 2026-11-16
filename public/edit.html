@@ -77,8 +77,13 @@
         <div class="preview markdown" id="desc-preview">预览区</div>
       </div>
 
-      <label>代码</label>
-      <!-- 这里的 textarea 会被 CodeMirror 隐藏并替换 -->
+      <label>项目文件</label>
+      <div id="file-tabs" style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+        <!-- Tabs 会渲染在这里 -->
+      </div>
+      <button type="button" id="add-file-btn" style="margin-bottom: 12px; padding: 4px 10px; font-size: 13px;">+ 添加文件</button>
+
+      <!-- 隐藏原来的主 textarea，由 CodeMirror 接管 -->
       <textarea name="code" id="code-input"></textarea>
 
       <label class="inline" style="margin-top: 12px;">

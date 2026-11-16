@@ -71,6 +71,13 @@ CREATE TABLE IF NOT EXISTS likes (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (user_id, snippet_id)
 );
+CREATE TABLE IF NOT EXISTS snippet_files (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    snippet_id INTEGER NOT NULL REFERENCES snippets(id) ON DELETE CASCADE,
+    filename   TEXT NOT NULL,
+    language   TEXT NOT NULL,
+    code       TEXT NOT NULL
+);
 `;
 
 const statements = schema.split(";").map(s => s.trim()).filter(Boolean);

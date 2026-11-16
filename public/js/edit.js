@@ -1,110 +1,127 @@
-function getId() {
-  return new URLSearchParams(location.search).get("id");
-}
+function getId() { return new URLSearchParams(location.search).get("id"); }
 
-// 映射到 CodeMirror 的 mode
-const modeMap = {
-  cpp: "text/x-c++src",
-  python: "python",
-  javascript: "javascript",
-  html: "xml",
-  css: "css",
-  other: "null"
-};
+const modeMap = { cpp: "text/x-c++src", python: "python", javascript: "javascript", html: "xml", css: "css", other: "null" };
+
+// 状态管理
+let filesData = []; // 存储多文件数据
+let activeFileIndex = 0;
+let codeEditor;
 
 async function initEdit() {
-  if (!getUser()) {
-    location.href = "login.html";
-    return;
-  }
+  if (!getUser()) { location.href = "login.html"; return; }
 
   const form = document.getElementById("edit-form");
   const msg = document.getElementById("msg");
   const id = getId();
 
-  // 1. 初始化 CodeMirror
-  const codeTextarea = document.getElementById("code-input");
-  const codeEditor = CodeMirror.fromTextArea(codeTextarea, {
-    lineNumbers: true,
-    theme: "dracula",
-    mode: "text/x-c++src",
-    matchBrackets: true,
-    autoCloseBrackets: true,
-    indentUnit: 4,
-    tabSize: 4,
-    lineWrapping: true
+  // 初始化编辑器
+  codeEditor = CodeMirror.fromTextArea(document.getElementById("code-input"), {
+    lineNumbers: true, theme: "dracula", mode: "text/x-c++src",
+    matchBrackets: true, autoCloseBrackets: true, indentUnit: 4, tabSize: 4, lineWrapping: true
   });
 
-  // 监听语言下拉框，动态切换语法高亮
+  // 监听语言下拉框
   const langSelect = document.getElementById("lang-select");
   langSelect.addEventListener("change", () => {
     codeEditor.setOption("mode", modeMap[langSelect.value] || "null");
+    if (filesData[activeFileIndex]) filesData[activeFileIndex].language = langSelect.value;
   });
 
-  // 2. 初始化 Markdown 实时预览
+  // Markdown 逻辑保持不变...
   const descInput = document.getElementById("desc-input");
   const descPreview = document.getElementById("desc-preview");
-  
   const updatePreview = () => {
     const raw = descInput.value.trim();
-    if (!raw) {
-      descPreview.innerHTML = '<span style="color: #64748b;">预览区</span>';
-      return;
-    }
-    descPreview.innerHTML = DOMPurify.sanitize(marked.parse(raw));
+    descPreview.innerHTML = raw ? DOMPurify.sanitize(marked.parse(raw)) : '<span style="color: #64748b;">预览区</span>';
   };
-  
   descInput.addEventListener("input", updatePreview);
 
-  // 3. 如果是编辑模式，回显数据
+  // 渲染文件 Tabs
+  const renderTabs = () => {
+    const tabsContainer = document.getElementById("file-tabs");
+    tabsContainer.innerHTML = filesData.map((f, i) => `
+      <div style="display:flex; align-items:center;">
+        <button type="button" onclick="switchFile(${i})" style="padding: 4px 12px; border-radius: 6px 0 0 6px; border-right: none; background: ${i === activeFileIndex ? 'var(--primary)' : 'var(--border-color)'}; color: #fff; font-size: 13px;">
+          ${escapeHtml(f.filename)}
+        </button>
+        ${filesData.length > 1 ? `<button type="button" onclick="removeFile(${i})" style="padding: 4px 8px; border-radius: 0 6px 6px 0; background: #dc2626; color: #fff; font-size: 13px; border-left: 1px solid #b91c1c;">×</button>` : ''}
+      </div>
+    `).join("");
+  };
+
+  // 切换文件
+  window.switchFile = (index) => {
+    // 1. 保存当前编辑器内容到数组
+    filesData[activeFileIndex].code = codeEditor.getValue();
+    // 2. 切换索引
+    activeFileIndex = index;
+    const file = filesData[index];
+    // 3. 更新下拉框和编辑器
+    langSelect.value = file.language;
+    codeEditor.setOption("mode", modeMap[file.language] || "null");
+    codeEditor.setValue(file.code);
+    renderTabs();
+    setTimeout(() => codeEditor.refresh(), 10);
+  };
+
+  // 删除文件
+  window.removeFile = (index) => {
+    if (filesData.length <= 1) return;
+    filesData.splice(index, 1);
+    if (activeFileIndex >= filesData.length) activeFileIndex = filesData.length - 1;
+    switchFile(activeFileIndex);
+  };
+
+  // 添加文件
+  document.getElementById("add-file-btn").onclick = () => {
+    filesData[activeFileIndex].code = codeEditor.getValue(); // 暂存
+    const newFileName = prompt("输入新文件名 (例如 utils.h):", "file.cpp");
+    if (!newFileName) return;
+    const ext = newFileName.split('.').pop() || 'cpp';
+    const lang = ext === 'h' || ext === 'hpp' ? 'cpp' : ext;
+    
+    filesData.push({ filename: newFileName, language: lang, code: "" });
+    switchFile(filesData.length - 1);
+  };
+
+  // 回显 / 初始化数据
   if (id) {
     try {
       const snippet = await snippetApi.get(id);
       form.elements.title.value = snippet.title;
       form.elements.language.value = snippet.language;
-      
-      // 切换编辑器语言模式
-      codeEditor.setOption("mode", modeMap[snippet.language] || "null");
-      
-      // 填充 Markdown 并触发预览
       form.elements.description.value = snippet.description || "";
       updatePreview();
-      
-      // 填充代码编辑器
-      codeEditor.setValue(snippet.code);
-      
       form.elements.is_public.checked = snippet.is_public;
       form.elements.tags.value = snippet.tags.map((tag) => tag.name).join(", ");
-      document.querySelector("h1").textContent = "编辑片段";
+      document.querySelector("h1").textContent = "编辑项目";
       
-      // 让编辑器获得焦点
-      setTimeout(() => codeEditor.refresh(), 100);
-    } catch (error) {
-      showAlert(error.message);
-    }
+      filesData = snippet.files || [{ filename: "main.cpp", language: snippet.language, code: snippet.code }];
+    } catch (error) { showAlert(error.message); }
+  } else {
+    // 新建默认
+    filesData = [{ filename: "main.cpp", language: "cpp", code: "// Write your code here\n" }];
   }
 
-  // 4. 提交表单
+  activeFileIndex = 0;
+  langSelect.value = filesData[0].language;
+  codeEditor.setOption("mode", modeMap[filesData[0].language] || "null");
+  codeEditor.setValue(filesData[0].code);
+  renderTabs();
+
+  // 提交表单
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-
-    // 从 CodeMirror 实例获取代码
-    const codeValue = codeEditor.getValue();
-    if (!codeValue.trim()) {
-      showToast("代码不能为空！", true);
-      return;
-    }
+    filesData[activeFileIndex].code = codeEditor.getValue(); // 存下最后一个活动文件的内容
 
     const body = {
       title: form.elements.title.value.trim(),
-      language: form.elements.language.value,
+      language: form.elements.language.value, // 主语言取下拉框
       description: form.elements.description.value.trim() || null,
-      code: codeValue,
+      code: filesData[0].code, // 兼容老接口，主 code 取第一个文件
+      files: filesData, // 传整个文件数组
       is_public: form.elements.is_public.checked,
-      tags: form.elements.tags.value
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+      tags: form.elements.tags.value.split(",").map(i => i.trim()).filter(Boolean),
     };
 
     const submitBtn = form.querySelector('button[type="submit"]');
@@ -112,9 +129,7 @@ async function initEdit() {
     submitBtn.textContent = "保存中...";
 
     try {
-      const saved = id
-        ? await snippetApi.update(id, body)
-        : await snippetApi.create(body);
+      const saved = id ? await snippetApi.update(id, body) : await snippetApi.create(body);
       location.href = `snippet.html?id=${saved.id}`;
     } catch (error) {
       showAlert(error.message);

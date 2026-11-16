@@ -23,11 +23,26 @@ async function loadSnippet() {
   }
 }
 
+// 全局保存文件数据
+let currentSnippetFiles = [];
+let currentSnippetLang = "";
+let currentActiveIndex = 0;
+
 function renderSnippet(snippet, root) {
   const user = getUser();
   const isOwner = user && user.id === snippet.owner.id;
   const tags = snippet.tags.map((tag) => `<span class="tag">${escapeHtml(tag.name)}</span>`).join("");
   const descHtml = snippet.description ? DOMPurify.sanitize(marked.parse(snippet.description)) : "";
+
+  currentSnippetFiles = snippet.files || [{ filename: `main.${snippet.language}`, language: snippet.language, code: snippet.code }];
+  currentSnippetLang = snippet.language;
+  currentActiveIndex = 0;
+
+  const fileTabsHtml = currentSnippetFiles.map((f, i) => `
+    <button class="file-tab-btn" data-index="${i}" style="padding: 6px 16px; border-radius: 6px 6px 0 0; border: 1px solid var(--border-color); border-bottom: none; background: ${i === 0 ? 'var(--card-bg)' : 'var(--bg-color)'}; color: ${i === 0 ? '#38bdf8' : 'var(--muted)'}; font-weight: ${i === 0 ? 'bold' : 'normal'}; cursor: pointer; font-family: monospace;">
+      ${escapeHtml(f.filename)}
+    </button>
+  `).join("");
 
   root.innerHTML = `
     <article class="card">
@@ -48,10 +63,14 @@ function renderSnippet(snippet, root) {
       </div>
       ${descHtml ? `<section class="markdown">${descHtml}</section>` : ""}
       
-      <!-- 两栏布局：代码区 + 大纲区 -->
+      <!-- 文件 Tab -->
+      <div style="display: flex; gap: 4px; margin-top: 20px; flex-wrap: wrap;">
+        ${fileTabsHtml}
+      </div>
+
       <div class="code-layout">
         <div class="code-area">
-          <pre id="code-pre" style="background: var(--pre-bg); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 0;"><code id="code" class="hljs language-${highlightLanguage(snippet.language)}"></code></pre>
+          <pre id="code-pre" style="background: var(--pre-bg); padding: 16px; border-radius: 0 8px 8px 8px; overflow-x: auto; margin: 0;"><code id="code" class="hljs"></code></pre>
           <button id="copy-btn" style="margin-top: 12px;">复制代码</button>
         </div>
         <div class="outline-area" id="outline-panel">
@@ -62,13 +81,39 @@ function renderSnippet(snippet, root) {
     </article>
   `;
 
-  const codeEl = document.getElementById("code");
-  codeEl.textContent = snippet.code;
+  // 渲染第一个文件
+  switchFile(0);
+
+  // 绑定 Tab 切换事件
+  document.querySelectorAll('.file-tab-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      const index = Number(e.target.dataset.index);
+      switchFile(index);
+    };
+  });
+
+  // ... 剩下的点赞、收藏、复制事件保持不变 ...
+  initActions(snippet, user, isOwner);
+}
+
+// 切换文件的核心函数
+window.switchFile = (index) => {
+  currentActiveIndex = index;
+  const file = currentSnippetFiles[index];
   
-  // 1. 执行语法高亮
+  // 更新 Tab UI
+  document.querySelectorAll('.file-tab-btn').forEach((btn, i) => {
+    btn.style.background = i === index ? 'var(--card-bg)' : 'var(--bg-color)';
+    btn.style.color = i === index ? '#38bdf8' : 'var(--muted)';
+    btn.style.fontWeight = i === index ? 'bold' : 'normal';
+  });
+
+  const codeEl = document.getElementById("code");
+  codeEl.className = `hljs language-${highlightLanguage(file.language)}`;
+  codeEl.textContent = file.code;
   hljs.highlightElement(codeEl);
 
-  // 2. 强拆 DOM，给每一行加上 ID（为了实现跳转）
+  // 强拆 DOM 加行号
   const rawHtml = codeEl.innerHTML;
   const lines = rawHtml.split('\n');
   let newHtml = "";
@@ -77,12 +122,39 @@ function renderSnippet(snippet, root) {
   }
   codeEl.innerHTML = newHtml;
 
-  // 3. 生成大纲
-  generateOutline(snippet.code, snippet.language);
+  // 重新生成大纲
+  generateOutline(file.code, file.language);
+};
 
-  // 绑定其他事件...
-  initActions(snippet, user, isOwner);
-}
+// 切换文件的核心函数
+window.switchFile = (index) => {
+  currentActiveIndex = index;
+  const file = currentSnippetFiles[index];
+  
+  // 更新 Tab UI
+  document.querySelectorAll('.file-tab-btn').forEach((btn, i) => {
+    btn.style.background = i === index ? 'var(--card-bg)' : 'var(--bg-color)';
+    btn.style.color = i === index ? '#38bdf8' : 'var(--muted)';
+    btn.style.fontWeight = i === index ? 'bold' : 'normal';
+  });
+
+  const codeEl = document.getElementById("code");
+  codeEl.className = `hljs language-${highlightLanguage(file.language)}`;
+  codeEl.textContent = file.code;
+  hljs.highlightElement(codeEl);
+
+  // 强拆 DOM 加行号
+  const rawHtml = codeEl.innerHTML;
+  const lines = rawHtml.split('\n');
+  let newHtml = "";
+  for (let i = 0; i < lines.length; i++) {
+    newHtml += `<span class="code-line" id="line-${i + 1}" style="display:block; min-height: 1.6em;">${lines[i] || ' '}</span>`;
+  }
+  codeEl.innerHTML = newHtml;
+
+  // 重新生成大纲
+  generateOutline(file.code, file.language);
+};
 
 // ==========================================
 // 核心：提取代码大纲 (单字母标识版)
@@ -97,7 +169,7 @@ function generateOutline(code, lang) {
 
   // 收集所有被声明过的变量名
   lines.forEach(line => {
-    const varMatch = line.match(/(?:int|double|float|char|bool|void|auto|size_t|string|vector|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)/);
+    const varMatch = line.match(/(?:int|long|long long|unsigned int|unsigned long|unsigned long long|double|float|char|bool|void|auto|size_t|string|vector|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)/);
     if (varMatch) declaredVariables.add(varMatch[1]);
   });
 
@@ -127,8 +199,8 @@ function generateOutline(code, lang) {
         type = 'func';
       }
       // 4. 匹配变量
-      else if (/(?:int|double|float|char|bool|auto|size_t|string|vector|map|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)\s*(?:=|\(|;)/.test(trimmed)) {
-        name = trimmed.match(/(?:int|double|float|char|bool|auto|size_t|string|vector|map|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)/)[1];
+      else if (/(?:int|long|long long|unsigned int|unsigned long|unsigned long long|double|float|char|bool|void|auto|size_t|string|vector|map|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)\s*(?:=|\(|;)/.test(trimmed)) {
+        name = trimmed.match(/(?:int|long|long long|unsigned int|unsigned long|unsigned long long|double|float|char|bool|void|auto|size_t|string|vector|map|ifstream|ofstream|stringstream|CURL|CURLcode|fs::path|struct\s+\w+)\s*[\*&]?\s*([a-zA-Z_]\w*)/)[1];
         type = 'var';
       }
     } 
@@ -205,19 +277,16 @@ window.scrollToLine = (lineNum) => {
 // 其他事件绑定（复制、点赞、删除）
 // ==========================================
 function initActions(snippet, user, isOwner) {
-  const codeEl = document.getElementById("code");
   const preEl = document.getElementById("code-pre");
   
   preEl.style.setProperty("font-family", "'Consolas', monospace", "important");
   preEl.style.setProperty("font-size", "15px", "important");
   preEl.style.setProperty("line-height", "1.6", "important");
-  codeEl.querySelectorAll("*").forEach(child => {
-    child.style.setProperty("font-family", "'Consolas', monospace", "important");
-  });
 
   document.getElementById("copy-btn").onclick = async () => {
     try {
-      await navigator.clipboard.writeText(snippet.code);
+      const currentCode = currentSnippetFiles[currentActiveIndex].code;
+      await navigator.clipboard.writeText(currentCode);
       showToast("✅ 代码已复制到剪贴板！");
     } catch {
       showAlert("复制失败，请手动选择代码复制");
