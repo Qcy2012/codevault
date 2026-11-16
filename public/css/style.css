@@ -474,3 +474,59 @@ pre, code, pre code, code.hljs, code.hljs * {
   70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
+
+/* ==========================================
+   高级质感下拉菜单 (Select)
+   ========================================== */
+select {
+  appearance: none; /* 去除浏览器默认下拉箭头 */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: var(--input-bg);
+  color: var(--text-color);
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  padding: 8px 36px 8px 12px; /* 右侧留出箭头的空间 */
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  /* 使用 SVG 绘制自定义的下拉箭头 */
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+}
+
+/* 悬浮状态：边框高亮发光 */
+select:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+}
+
+/* 聚焦（点开）状态：更亮的发光 */
+select:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3);
+}
+
+/* 下拉选项列表（针对部分支持的浏览器如 Firefox） */
+select option {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  padding: 10px;
+  font-size: 14px;
+}
+
+/* 深色模式下的 Webkit 兼容调整（去除自带样式的白底） */
+@media screen and (-webkit-min-device-pixel-ratio:0) { 
+  select {
+    background-color: var(--input-bg);
+  }
+  select option {
+    background-color: var(--card-bg);
+  }
+}
