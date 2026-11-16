@@ -278,6 +278,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (opt.selected) div.classList.add("selected");
 
         div.onclick = (e) => {
+          e.preventDefault();
           e.stopPropagation();
           originalSelect.selectedIndex = index;
           // 触发原生的 change 事件，保证原有页面的下拉逻辑正常执行！
@@ -296,6 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 点击展开/收起
     trigger.onclick = (e) => {
+      e.preventDefault(); 
       e.stopPropagation();
       // 关闭其他已打开的
       document.querySelectorAll(".custom-select-wrapper").forEach(w => {
@@ -303,6 +305,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       wrapper.classList.toggle("open");
     };
+
+    originalSelect.addEventListener("change", () => {
+      const selectedOpt = originalSelect.options[originalSelect.selectedIndex];
+      trigger.querySelector(".custom-select-label").textContent = selectedOpt ? selectedOpt.text : "";
+      renderOptions();
+    });
   });
 
   // 点击空白处关闭

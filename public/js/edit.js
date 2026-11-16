@@ -58,6 +58,7 @@ async function initEdit() {
     const file = filesData[index];
     // 3. 更新下拉框和编辑器
     langSelect.value = file.language;
+    langSelect.dispatchEvent(new Event("change"));
     codeEditor.setOption("mode", modeMap[file.language] || "null");
     codeEditor.setValue(file.code);
     renderTabs();
