@@ -253,41 +253,83 @@ function generateOutline(code, lang) {
 // 点击大纲平滑滚动并高亮
 window.scrollToLine = (lineNum) => {
   const codeEl = document.getElementById("code");
-  const preEl = document.getElementById("code-pre");
-  if (!codeEl || !preEl) return;
+  if (!codeEl) return;
 
-  // 计算代码字体设置下的准确行高
-  const style = window.getComputedStyle(codeEl);
-  const lineHeight = parseFloat(style.lineHeight);
-  
-  // 滚动到目标行（留出上方 40px 的间距，不至于紧贴顶部）
-  preEl.scrollTo({
-    top: (lineNum - 1) * lineHeight - 40,
-    behavior: 'smooth'
-  });
-  
-  // 可选的闪烁效果：利用临时遮罩层实现（不破坏代码结构）
-  const overlay = document.createElement('div');
-  overlay.style.position = 'absolute';
-  overlay.style.left = '0';
-  overlay.style.right = '0';
-  // 相对于 pre 内部的位置
-  overlay.style.top = `${(lineNum - 1) * lineHeight + 16}px`; // 16 是 pre 的 padding-top
-  overlay.style.height = `${lineHeight}px`;
-  overlay.style.background = 'rgba(56, 189, 248, 0.2)';
-  overlay.style.pointerEvents = 'none';
-  overlay.style.transition = 'opacity 0.8s ease-out';
-  
-  // 确保外层 pre 是相对定位
-  if (window.getComputedStyle(preEl).position === 'static') {
-    preEl.style.position = 'relative';
+  // 利用 TreeWalker 遍历所有文本节点，精准找到第 N 行的位置
+  const walker = document.createTreeWalker(codeEl, NodeFilter.SHOW_TEXT, null, false);
+  let node;
+  let currentLine = 1;
+  let found = false;
+
+  while ((node = walker.nextNode())) {
+    const text = node.nodeValue;
+    const lineBreaks = text.match(/\n/g);
+    const numBreaks = lineBreaks ? lineBreaks.length : 0;
+
+    if (currentLine + numBreaks >= lineNum) {
+      // 目标行在这个文本节点中
+      const targetIndex = lineNum - currentLine;
+      let startOffset = 0;
+      
+      for (let i = 0; i < targetIndex; i++) {
+        startOffset = text.indexOf('\n', startOffset) + 1;
+      }
+
+      // 创建一个 Range 定位到目标行首
+      const range = document.createRange();
+      range.setStart(node, startOffset);
+      range.setEnd(node, startOffset);
+
+      // 插入一个临时锚点
+      const marker = document.createElement('span');
+      marker.id = 'temp-scroll-marker';
+      marker.style.display = 'inline-block';
+      marker.style.width = '0';
+      marker.style.height = '0';
+      range.insertNode(marker);
+
+      // 使用原生 API 滚动到锚点（浏览器会自动处理容器滚动或页面滚动）
+      marker.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      // 计算真实 DOM 渲染出的位置，用于精准高亮
+      const rect = marker.getBoundingClientRect();
+      const codeRect = codeEl.getBoundingClientRect();
+      
+      // 动态获取当前真实行高
+      const lineHeight = parseFloat(window.getComputedStyle(codeEl).lineHeight) || 24;
+
+      // 创建一个绝对定位的蓝色遮罩条
+      const flashOverlay = document.createElement('div');
+      flashOverlay.style.position = 'absolute';
+      flashOverlay.style.left = '0';
+      flashOverlay.style.right = '0';
+      // 将遮罩精确对齐到该行的 Y 坐标
+      flashOverlay.style.top = `${rect.top - codeRect.top}px`;
+      flashOverlay.style.height = `${lineHeight}px`;
+      flashOverlay.style.background = 'rgba(56, 189, 248, 0.2)';
+      flashOverlay.style.pointerEvents = 'none';
+      flashOverlay.style.transition = 'opacity 1s ease-out';
+      
+      // 确保父容器是 relative 定位
+      if (window.getComputedStyle(codeEl.parentElement).position === 'static') {
+        codeEl.parentElement.style.position = 'relative';
+      }
+      
+      codeEl.parentElement.appendChild(flashOverlay);
+      
+      // 动画结束清理
+      setTimeout(() => {
+        flashOverlay.style.opacity = '0';
+        setTimeout(() => flashOverlay.remove(), 1000);
+      }, 500);
+
+      // 清理锚点
+      marker.remove();
+      found = true;
+      break;
+    }
+    currentLine += numBreaks;
   }
-  
-  preEl.appendChild(overlay);
-  setTimeout(() => {
-    overlay.style.opacity = '0';
-    setTimeout(() => overlay.remove(), 800);
-  }, 300);
 };
 
 // ==========================================
