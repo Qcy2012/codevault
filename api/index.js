@@ -18,8 +18,12 @@ import statusRoutes from "../routes/status.js";
 const app = new Hono().basePath("/api");
 
 app.onError((err, c) => {
-  console.error("💥 后端发生错误:", err);
-  return c.json({ detail: `服务器内部错误: ${err.message}` }, 500);
+  console.error('Unhandled Error:', err);
+  return c.json({ 
+    detail: '服务器内部错误', 
+    message: err.message,
+    // 仅在开发环境返回堆栈，生产环境建议隐藏
+  }, 500);
 });
 
 app.use("*", logger());
