@@ -49,40 +49,74 @@ async function initEdit() {
     `).join("");
   };
 
-  // 切换文件
-  window.switchFile = (index) => {
-    // 1. 保存当前编辑器内容到数组
-    filesData[activeFileIndex].code = codeEditor.getValue();
-    // 2. 切换索引
-    activeFileIndex = index;
-    const file = filesData[index];
-    // 3. 更新下拉框和编辑器
+  // ==========================================
+  // 重构：文件切换与删除逻辑
+  // ==========================================
+
+  // 抽离出纯渲染函数（不包含任何保存动作）
+  const renderEditor = () => {
+    const file = filesData[activeFileIndex];
+    if (!file) return;
+
     langSelect.value = file.language;
+    // 触发原生事件更新自定义下拉框 UI
     langSelect.dispatchEvent(new Event("change"));
+    
     codeEditor.setOption("mode", modeMap[file.language] || "null");
     codeEditor.setValue(file.code);
     renderTabs();
     setTimeout(() => codeEditor.refresh(), 10);
   };
 
+  // 切换文件（包含保存当前进度的动作）
+  window.switchFile = (index) => {
+    // 1. 先把当前编辑器里的代码存回数组，防止丢失
+    filesData[activeFileIndex].code = codeEditor.getValue();
+    // 2. 切换索引
+    activeFileIndex = index;
+    // 3. 纯渲染
+    renderEditor();
+  };
+
   // 删除文件
   window.removeFile = (index) => {
     if (filesData.length <= 1) return;
+
+    // 1. 最重要的第一步：先把当前正在编辑的代码保存回数组！
+    filesData[activeFileIndex].code = codeEditor.getValue();
+
+    // 2. 从数组中删除目标文件
     filesData.splice(index, 1);
-    if (activeFileIndex >= filesData.length) activeFileIndex = filesData.length - 1;
-    switchFile(activeFileIndex);
+
+    // 3. 精准修正当前选中的索引
+    if (activeFileIndex >= filesData.length) {
+      // 如果删的是最后一个，索引退一位
+      activeFileIndex = filesData.length - 1;
+    } else if (index < activeFileIndex) {
+      // 如果删的是前面的文件，后面的文件索引会集体前移
+      activeFileIndex--;
+    }
+
+    // 4. 重新渲染，不再调用保存逻辑
+    renderEditor();
   };
 
   // 添加文件
   document.getElementById("add-file-btn").onclick = () => {
-    filesData[activeFileIndex].code = codeEditor.getValue(); // 暂存
+    // 1. 保存当前进度
+    filesData[activeFileIndex].code = codeEditor.getValue();
+
     const newFileName = prompt("输入新文件名 (例如 utils.h):", "file.cpp");
     if (!newFileName) return;
     const ext = newFileName.split('.').pop() || 'cpp';
     const lang = ext === 'h' || ext === 'hpp' ? 'cpp' : ext;
     
+    // 2. 推入数组并切换
     filesData.push({ filename: newFileName, language: lang, code: "" });
-    switchFile(filesData.length - 1);
+    activeFileIndex = filesData.length - 1;
+    
+    // 3. 纯渲染
+    renderEditor();
   };
 
   // 回显 / 初始化数据
