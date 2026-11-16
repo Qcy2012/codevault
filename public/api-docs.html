@@ -154,6 +154,47 @@
     [data-theme="light"] .swagger-ui .opblock-body { background: #f8fafc !important; }
     [data-theme="light"] .swagger-ui .highlight-code { background: #fff !important; }
     [data-theme="light"] .swagger-ui .model-box { background: #f1f5f9 !important; }
+
+    /* ==========================================
+       6. 终极修复：消灭 Parameters/Responses 的灰色横条
+       ========================================== */
+    /* 取消横条背景和阴影，改为透明+底部边框 */
+    .swagger-ui .opblock-section-header {
+      background: transparent !important;
+      box-shadow: none !important;
+      border-bottom: 1px solid var(--border-color) !important;
+    }
+
+    /* 标题文字强制跟随主题 */
+    .swagger-ui .opblock-section-header h4,
+    .swagger-ui .opblock-section-header label {
+      color: var(--text-color) !important;
+    }
+
+    /* 修复 Try it out 按钮 */
+    .swagger-ui .btn.try-out__btn {
+      background: var(--card-bg) !important;
+      color: var(--text-color) !important;
+      border: 1px solid var(--border-color) !important;
+    }
+    .swagger-ui .btn.try-out__btn:hover {
+      background: var(--border-color) !important;
+    }
+
+    /* 修复 Responses 表格头部颜色 */
+    .swagger-ui .responses-table thead tr th {
+      color: var(--muted) !important;
+      border-bottom: 1px solid var(--border-color) !important;
+    }
+    .swagger-ui .responses-inner {
+      background: transparent !important;
+      padding: 10px 0 !important;
+    }
+
+    /* 修复 Request body 内部的默认背景 */
+    .swagger-ui .opblock-body .opblock-section {
+      background: transparent !important;
+    }
   </style>
 </head>
 <body>
