@@ -227,3 +227,86 @@ function startHeartbeat() {
 }
 
 document.addEventListener("DOMContentLoaded", startHeartbeat);
+
+// ==========================================
+// 全局自定义下拉菜单 (Custom Select)
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+  const selects = document.querySelectorAll("select");
+
+  selects.forEach(originalSelect => {
+    // 如果已经被替换过，就跳过
+    if (originalSelect.dataset.customized) return;
+    originalSelect.dataset.customized = "true";
+
+    // 隐藏原生 select
+    originalSelect.style.display = "none";
+
+    // 创建自定义容器
+    const wrapper = document.createElement("div");
+    wrapper.className = "custom-select-wrapper";
+    originalSelect.parentNode.insertBefore(wrapper, originalSelect);
+    wrapper.appendChild(originalSelect);
+
+    const trigger = document.createElement("div");
+    trigger.className = "custom-select-trigger";
+    
+    // 箭头 SVG
+    trigger.innerHTML = `
+      <span class="custom-select-label">${originalSelect.options[originalSelect.selectedIndex]?.text || ""}</span>
+      <svg class="custom-select-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+    `;
+    wrapper.appendChild(trigger);
+
+    const optionsContainer = document.createElement("div");
+    optionsContainer.className = "custom-select-options";
+    wrapper.appendChild(optionsContainer);
+
+    // 渲染选项
+    const renderOptions = () => {
+      optionsContainer.innerHTML = "";
+      Array.from(originalSelect.options).forEach((opt, index) => {
+        const div = document.createElement("div");
+        div.className = "custom-select-option";
+        div.textContent = opt.text;
+        
+        // 处理分组（optgroup）
+        if (opt.parentElement.tagName === "OPTGROUP") {
+          div.textContent = opt.parentElement.label + " - " + opt.text; // 简单处理
+        }
+
+        if (opt.selected) div.classList.add("selected");
+
+        div.onclick = (e) => {
+          e.stopPropagation();
+          originalSelect.selectedIndex = index;
+          // 触发原生的 change 事件，保证原有页面的下拉逻辑正常执行！
+          originalSelect.dispatchEvent(new Event("change"));
+          
+          // 更新 UI
+          trigger.querySelector(".custom-select-label").textContent = opt.text;
+          wrapper.classList.remove("open");
+          renderOptions();
+        };
+        optionsContainer.appendChild(div);
+      });
+    };
+
+    renderOptions();
+
+    // 点击展开/收起
+    trigger.onclick = (e) => {
+      e.stopPropagation();
+      // 关闭其他已打开的
+      document.querySelectorAll(".custom-select-wrapper").forEach(w => {
+        if (w !== wrapper) w.classList.remove("open");
+      });
+      wrapper.classList.toggle("open");
+    };
+  });
+
+  // 点击空白处关闭
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".custom-select-wrapper").forEach(w => w.classList.remove("open"));
+  });
+});
