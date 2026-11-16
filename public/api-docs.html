@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API 开发者文档 - CodeVault</title>
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Swagger UI 样式 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.11.0/swagger-ui.css">
+  
+  <style>
+    /* 统一大屏和文档的背景 */
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+    
+    /* 覆盖 Swagger UI 的默认白色背景，完美融入我们的暗黑/亮色主题 */
+    .swagger-ui { font-family: inherit; }
+    .swagger-ui .info .title { color: var(--text-color); }
+    .swagger-ui .info p, .swagger-ui .info a { color: var(--muted); }
+    .swagger-ui .opblock-tag { color: var(--text-color); border-bottom: 1px solid var(--border-color); }
+    .swagger-ui .opblock .opblock-summary-method { border-radius: 4px; }
+    .swagger-ui .opblock { background: var(--card-bg); border-color: var(--border-color); }
+    .swagger-ui .opblock .opblock-summary { border-bottom: none; }
+    .swagger-ui .opblock-body { background: var(--input-bg); }
+    .swagger-ui select, .swagger-ui input[type=text] { background: var(--input-bg) !important; color: var(--text-color) !important; border-color: var(--border-color) !important; }
+    .swagger-ui .model-box { background: rgba(0,0,0,0.1); }
+    .swagger-ui .model-title, .swagger-ui .property-row { color: var(--text-color); }
+    .swagger-ui table thead tr td, .swagger-ui table thead tr th { color: var(--muted); border-color: var(--border-color); }
+    .swagger-ui .btn.authorize { background-color: #0284c7; color: white; border-color: #0369a1; }
+    .swagger-ui .btn.authorize svg { fill: white; }
+    .swagger-ui .btn.authorize:hover { background-color: #0369a1; }
+    
+    /* 亮色模式下的微调 */
+    [data-theme="light"] .swagger-ui .opblock-body { background: #f8fafc; }
+    [data-theme="light"] .swagger-ui .highlight-code { background: #fff; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="index.html">CodeVault</a>
+    <nav id="nav-auth" style="margin-left: auto;"></nav>
+  </header>
+
+  <main class="container" style="max-width: 1200px;">
+    <div id="swagger-ui"></div>
+  </main>
+
+  <!-- 引入 Swagger UI 脚本 -->
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.11.0/swagger-ui-bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js"></script>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  
+  <script>
+    window.onload = () => {
+      // 动态获取当前的 host，支持本地和线上
+      const currentServer = window.location.origin;
+      
+      // 初始化 Swagger UI
+      window.ui = SwaggerUIBundle({
+        url: "openapi.json", // 读取我们写的配置文件
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        plugins: [
+          SwaggerUIBundle.plugins.DownloadUrl
+        ],
+        layout: "BaseLayout",
+        // 自动替换 server 地址为当前访问的地址
+        onComplete: function() {
+          const servers = document.querySelectorAll('.servers select');
+          if(servers.length > 0) {
+             // 如果当前是线上域名，Swagger 会默认选中第一个，但为了保险，我们手动处理
+          }
+        }
+      });
+    };
+  </script>
+</body>
+</html>

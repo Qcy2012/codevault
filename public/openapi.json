@@ -1,0 +1,121 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "CodeVault API",
+    "description": "CodeVault 开放接口文档。你可以使用 JWT Token 或 API Key 调用以下接口。",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://codevault.qcyblog.dpdns.org/api",
+      "description": "线上生产环境"
+    },
+    {
+      "url": "http://127.0.0.1:3000/api",
+      "description": "本地开发环境"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "网页端登录后的 JWT Token"
+      },
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-KEY",
+        "description": "在开发者设置中生成的 API Key"
+      }
+    },
+    "schemas": {
+      "Snippet": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "language": { "type": "string" },
+          "code": { "type": "string" },
+          "is_public": { "type": "boolean" }
+        }
+      },
+      "SnippetCreate": {
+        "type": "object",
+        "required": ["title", "language", "code"],
+        "properties": {
+          "title": { "type": "string", "example": "两数之和" },
+          "description": { "type": "string", "example": "经典的 LeetCode 题目" },
+          "language": { "type": "string", "example": "cpp" },
+          "code": { "type": "string", "example": "int main() { return 0; }" },
+          "is_public": { "type": "boolean", "default": true },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "summary": "用户登录",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "account": { "type": "string", "example": "root" },
+                  "password": { "type": "string", "example": "123456" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "登录成功，返回 Token" } }
+      }
+    },
+    "/snippets": {
+      "get": {
+        "summary": "获取代码片段列表",
+        "tags": ["Snippets"],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "搜索关键词" },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": { "type": "array", "items": { "$ref": "#/components/schemas/Snippet" } },
+                    "total": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "发布新代码片段",
+        "tags": ["Snippets"],
+        "security": [ { "ApiKeyAuth": [] }, { "BearerAuth": [] } ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SnippetCreate" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "发布成功" } }
+      }
+    }
+  }
+}

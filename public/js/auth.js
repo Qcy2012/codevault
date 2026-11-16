@@ -22,6 +22,7 @@ function renderNav() {
   const user = getUser();
   
   let navHTML = `
+    <a href="api-docs.html">API文档</a>
     <a href="diff.html">代码对比</a>
     <a href="status.html">服务状态</a>
     <a href="stats.html">代码统计</a>
