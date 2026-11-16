@@ -249,24 +249,30 @@ snippets.get("/:id", optionalAuth, async (c) => {
 
   const isOwner = current && current.id === row.user_id;
 
-  // 状态机校验：过期检查
+  // 状态机校验：过期检查 (安全日期解析)
   if (row.expires_at && !isOwner) {
-    const expireTime = new Date(row.expires_at.replace(' ', 'T') + 'Z').getTime();
-    if (Date.now() > expireTime) {
-      return c.json({ detail: "该代码片段已过期并自毁" }, 410);
+    // 将空格替换为T，并确保带有Z后缀
+    let timeStr = row.expires_at.replace(' ', 'T');
+    if (!timeStr.endsWith('Z')) timeStr += 'Z';
+    const expireTime = new Date(timeStr).getTime();
+    
+    // 只有当解析出有效时间，且当前时间大于过期时间时才拦截
+    if (!isNaN(expireTime) && Date.now() > expireTime) {
+      return c.json({ detail: "该代码片段已过期并销毁" }, 410);
     }
   }
 
-  // 状态机校验：阅后即焚检查
-  if (row.max_views > 0 && row.view_count >= row.max_views && !isOwner) {
-    return c.json({ detail: "该代码片段已达到最大查看次数并自毁" }, 410);
+  // 状态机校验：阅后即销毁检查 (防 null 报错)
+  const maxViews = Number(row.max_views || 0);
+  const viewCount = Number(row.view_count || 0);
+  if (maxViews > 0 && viewCount >= maxViews && !isOwner) {
+    return c.json({ detail: "该代码片段已达到最大查看次数并销毁" }, 410);
   }
 
   // 状态机校验：密码拦截
   if (row.password_hash && !isOwner) {
     const providedPassword = c.req.header("X-Snippet-Password");
     if (!providedPassword) {
-      // 不返回任何代码数据，只告诉前端需要密码
       return c.json({ require_password: true });
     }
     const isValid = await bcrypt.compare(providedPassword, row.password_hash);
