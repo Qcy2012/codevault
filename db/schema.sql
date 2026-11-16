@@ -51,46 +51,10 @@ CREATE TABLE IF NOT EXISTS likes (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (user_id, snippet_id)
 );
-CREATE TABLE IF NOT EXISTS status_checks (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    status      TEXT NOT NULL, -- 'up' 或 'down'
-    duration_ms INTEGER NOT NULL, -- 响应耗时
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+CREATE TABLE IF NOT EXISTS snippet_files (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    snippet_id INTEGER NOT NULL REFERENCES snippets(id) ON DELETE CASCADE,
+    filename   TEXT NOT NULL,
+    language   TEXT NOT NULL,
+    code       TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS incidents (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    title        TEXT NOT NULL,
-    status       TEXT NOT NULL, -- 'investigating' (调查中), 'resolved' (已解决)
-    started_at   TEXT NOT NULL DEFAULT (datetime('now')),
-    resolved_at  TEXT
-);
--- 建立 FTS5 虚拟表（使用 trigram 分词器，完美支持代码和中英文字符的模糊匹配）
-CREATE VIRTUAL TABLE IF NOT EXISTS snippets_fts USING fts5(
-    title,
-    description,
-    code,
-    content='snippets',
-    content_rowid='id',
-    tokenize='trigram'
-);
-
--- 触发器：新增数据时同步
-CREATE TRIGGER IF NOT EXISTS snippets_ai AFTER INSERT ON snippets BEGIN
-  INSERT INTO snippets_fts(rowid, title, description, code) VALUES (new.id, new.title, new.description, new.code);
-END;
-
--- 触发器：删除数据时同步
-CREATE TRIGGER IF NOT EXISTS snippets_ad AFTER DELETE ON snippets BEGIN
-  INSERT INTO snippets_fts(snippets_fts, rowid, title, description, code) VALUES('delete', old.id, old.title, old.description, old.code);
-END;
-
--- 触发器：更新数据时同步
-CREATE TRIGGER IF NOT EXISTS snippets_au AFTER UPDATE ON snippets BEGIN
-  INSERT INTO snippets_fts(snippets_fts, rowid, title, description, code) VALUES('delete', old.id, old.title, old.description, old.code);
-  INSERT INTO snippets_fts(rowid, title, description, code) VALUES (new.id, new.title, new.description, new.code);
-END;
-
--- 将现有的旧数据导入 FTS 引擎（如果表是空的，这句不会有副作用）
-INSERT INTO snippets_fts(rowid, title, description, code)
-SELECT id, title, description, code FROM snippets
-WHERE id NOT IN (SELECT rowid FROM snippets_fts);

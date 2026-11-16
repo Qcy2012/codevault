@@ -126,31 +126,28 @@ window.switchFile = (index) => {
   generateOutline(file.code, file.language);
 };
 
-// 切换文件的核心函数
+// 核心切换文件函数
 window.switchFile = (index) => {
   currentActiveIndex = index;
   const file = currentSnippetFiles[index];
   
-  // 更新 Tab UI
+  // 更新 Tab 的高亮 UI
   document.querySelectorAll('.file-tab-btn').forEach((btn, i) => {
     btn.style.background = i === index ? 'var(--card-bg)' : 'var(--bg-color)';
     btn.style.color = i === index ? '#38bdf8' : 'var(--muted)';
     btn.style.fontWeight = i === index ? 'bold' : 'normal';
   });
 
+  // 渲染代码区
   const codeEl = document.getElementById("code");
+  
+  // 修复 1：强制移除 highlight.js 的缓存标记，允许重新高亮
+  codeEl.removeAttribute("data-highlighted");
   codeEl.className = `hljs language-${highlightLanguage(file.language)}`;
   codeEl.textContent = file.code;
+  
+  // 修复 2：让 hljs 正常渲染整个代码块，我们绝不手动拆分 innerHTML
   hljs.highlightElement(codeEl);
-
-  // 强拆 DOM 加行号
-  const rawHtml = codeEl.innerHTML;
-  const lines = rawHtml.split('\n');
-  let newHtml = "";
-  for (let i = 0; i < lines.length; i++) {
-    newHtml += `<span class="code-line" id="line-${i + 1}" style="display:block; min-height: 1.6em;">${lines[i] || ' '}</span>`;
-  }
-  codeEl.innerHTML = newHtml;
 
   // 重新生成大纲
   generateOutline(file.code, file.language);
@@ -255,22 +252,42 @@ function generateOutline(code, lang) {
 
 // 点击大纲平滑滚动并高亮
 window.scrollToLine = (lineNum) => {
-  const lineEl = document.getElementById(`line-${lineNum}`);
-  if (!lineEl) return;
+  const codeEl = document.getElementById("code");
+  const preEl = document.getElementById("code-pre");
+  if (!codeEl || !preEl) return;
 
-  // 平滑滚动到视野中央
-  lineEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-  // 移除之前的闪烁
-  document.querySelectorAll('.code-line-flash').forEach(el => el.classList.remove('code-line-flash'));
+  // 计算代码字体设置下的准确行高
+  const style = window.getComputedStyle(codeEl);
+  const lineHeight = parseFloat(style.lineHeight);
   
-  // 添加闪烁动画
-  lineEl.classList.add('code-line-flash');
+  // 滚动到目标行（留出上方 40px 的间距，不至于紧贴顶部）
+  preEl.scrollTo({
+    top: (lineNum - 1) * lineHeight - 40,
+    behavior: 'smooth'
+  });
   
-  // 1秒后移除动画类，方便下次触发
+  // 可选的闪烁效果：利用临时遮罩层实现（不破坏代码结构）
+  const overlay = document.createElement('div');
+  overlay.style.position = 'absolute';
+  overlay.style.left = '0';
+  overlay.style.right = '0';
+  // 相对于 pre 内部的位置
+  overlay.style.top = `${(lineNum - 1) * lineHeight + 16}px`; // 16 是 pre 的 padding-top
+  overlay.style.height = `${lineHeight}px`;
+  overlay.style.background = 'rgba(56, 189, 248, 0.2)';
+  overlay.style.pointerEvents = 'none';
+  overlay.style.transition = 'opacity 0.8s ease-out';
+  
+  // 确保外层 pre 是相对定位
+  if (window.getComputedStyle(preEl).position === 'static') {
+    preEl.style.position = 'relative';
+  }
+  
+  preEl.appendChild(overlay);
   setTimeout(() => {
-    lineEl.classList.remove('code-line-flash');
-  }, 1000);
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 800);
+  }, 300);
 };
 
 // ==========================================
@@ -352,7 +369,7 @@ async function loadComments(snippetId) {
     const comments = await request(`/api/snippets/${snippetId}/comments`, { auth: false });
     const user = getUser();
     if (comments.length === 0) {
-      listEl.innerHTML = `<p class="muted">暂无评论，快来抢沙发！</p>`;
+      listEl.innerHTML = `<p class="muted">暂无评论，快来抢首评！</p>`;
       return;
     }
     listEl.innerHTML = comments.map(c => {
