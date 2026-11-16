@@ -5,8 +5,6 @@ function escapeHtml(str) {
 
 // 全局面板切换函数
 window.switchPanel = function(tab) {
-  console.log("【后台】正在切换到面板:", tab);
-  
   const tabSnippets = document.getElementById("tab-snippets");
   const tabLogs = document.getElementById("tab-logs");
   const panelSnippets = document.getElementById("panel-snippets");
