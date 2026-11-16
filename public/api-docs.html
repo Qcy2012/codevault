@@ -16,11 +16,10 @@
       color: var(--text-color);
     }
     
-    /* 统一全站字体 */
     .swagger-ui { font-family: inherit; }
     
     /* ==========================================
-       1. 根除那个丑陋的白块！
+       1. 根除白块与背景色统一
        ========================================== */
     .swagger-ui .scheme-container {
       background: var(--card-bg) !important;
@@ -30,11 +29,54 @@
       margin-bottom: 20px;
     }
     
-    .swagger-ui .info .title { color: var(--text-color); }
-    .swagger-ui .info p, .swagger-ui .info a { color: var(--muted); }
-    
     /* ==========================================
-       2. 彻底重绘 Servers 下拉框
+       2. 暴力统一所有文字颜色 (修复浅色模式看不见)
+       ========================================== */
+    .swagger-ui .info .title,
+    .swagger-ui .opblock-tag,
+    .swagger-ui .opblock-summary-path,
+    .swagger-ui .opblock-summary-path__deprecated,
+    .swagger-ui .parameter__name,
+    .swagger-ui .response-col_status,
+    .swagger-ui .model-title,
+    .swagger-ui .property-row,
+    .swagger-ui .tab li,
+    .swagger-ui label,
+    .swagger-ui table thead tr th,
+    .swagger-ui table tbody tr td {
+      color: var(--text-color) !important;
+    }
+
+    .swagger-ui .info p, 
+    .swagger-ui .info a,
+    .swagger-ui .opblock-summary-description,
+    .swagger-ui .response-col_links {
+      color: var(--muted) !important;
+    }
+
+    /* 修复标题旁边的版本标签和 OAS 标签 */
+    .swagger-ui .info .title small,
+    .swagger-ui .info .title small.version-stamp {
+      background: var(--border-color) !important;
+      color: var(--text-color) !important;
+      border-radius: 4px;
+      text-shadow: none !important;
+    }
+
+    /* ==========================================
+       3. 修复深色模式下的黑色箭头和图标 (最痛点)
+       ========================================== */
+    .swagger-ui .expand-operation svg,
+    .swagger-ui .models-control svg,
+    .swagger-ui .authorization__btn svg,
+    .swagger-ui .btn svg,
+    .swagger-ui .arrow {
+      fill: var(--text-color) !important;
+      stroke: var(--text-color) !important;
+    }
+
+    /* ==========================================
+       4. 彻底重绘 Servers 下拉框
        ========================================== */
     .swagger-ui .scheme-container select,
     .swagger-ui .scheme-container .servers select {
@@ -51,7 +93,6 @@
       box-shadow: none !important;
       transition: all 0.2s;
       
-      /* 注入我们全站同款的发光蓝色 SVG 箭头 */
       background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
       background-repeat: no-repeat !important;
       background-position: right 12px center !important;
@@ -65,7 +106,7 @@
     }
 
     /* ==========================================
-       3. 按钮与卡片质感
+       5. 按钮与卡片质感
        ========================================== */
     .swagger-ui .btn.authorize {
       background-color: #0284c7 !important;
@@ -76,32 +117,43 @@
       transition: all 0.2s;
     }
     .swagger-ui .btn.authorize:hover { background-color: #0369a1 !important; transform: translateY(-1px); }
-    .swagger-ui .btn.authorize svg { fill: white; }
+    .swagger-ui .btn.authorize svg { fill: white !important; stroke: white !important; }
     
-    .swagger-ui .opblock-tag { color: var(--text-color); border-bottom: 1px solid var(--border-color); }
+    .swagger-ui .opblock-tag { border-bottom: 1px solid var(--border-color); }
     .swagger-ui .opblock-tag:hover { background: rgba(56, 189, 248, 0.05); }
     .swagger-ui .opblock { background: var(--card-bg) !important; border-color: var(--border-color) !important; border-radius: 8px; }
     .swagger-ui .opblock .opblock-summary { border-bottom: none; }
     .swagger-ui .opblock-body { background: var(--input-bg) !important; }
     
-    /* 清除 GET / POST 等标签的杂色 */
     .swagger-ui .opblock.opblock-get .opblock-summary-method { background: #0284c7; border-radius: 4px; }
     .swagger-ui .opblock.opblock-post .opblock-summary-method { background: #10b981; border-radius: 4px; }
     
-    /* 修复参数表单和代码块的背景 */
-    .swagger-ui select, .swagger-ui input[type=text] { 
+    .swagger-ui select, 
+    .swagger-ui input[type=text],
+    .swagger-ui textarea { 
       background: var(--input-bg) !important; 
       color: var(--text-color) !important; 
-      border-color: var(--border-color) !important; 
+      border: 1px solid var(--border-color) !important; 
       border-radius: 4px;
     }
+    
     .swagger-ui .model-box { background: rgba(0,0,0,0.2) !important; border-radius: 6px; }
-    .swagger-ui .model-title, .swagger-ui .property-row { color: var(--text-color); }
-    .swagger-ui table thead tr td, .swagger-ui table thead tr th { color: var(--muted); border-color: var(--border-color); }
+    .swagger-ui table thead tr td, 
+    .swagger-ui table thead tr th { border-color: var(--border-color); }
+    
+    /* 响应区代码块美化 */
+    .swagger-ui .opblock-body pre.microlight,
+    .swagger-ui .opblock-body .highlight-code pre {
+      background: var(--card-bg) !important;
+      color: #38bdf8 !important;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
     
     /* 亮色模式微调 */
     [data-theme="light"] .swagger-ui .opblock-body { background: #f8fafc !important; }
     [data-theme="light"] .swagger-ui .highlight-code { background: #fff !important; }
+    [data-theme="light"] .swagger-ui .model-box { background: #f1f5f9 !important; }
   </style>
 </head>
 <body>
