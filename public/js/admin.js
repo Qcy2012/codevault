@@ -52,7 +52,12 @@ async function loadLogs() {
     const res = await fetch(`${API_BASE}/api/admin/logs`, {
       headers: { "Authorization": `Bearer ${getToken()}` }
     });
-    if (!res.ok) throw new Error("获取日志失败");
+
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.detail || `请求失败 (${res.status})`);
+    }
+
     const rows = await res.json();
 
     if (rows.length === 0) {
