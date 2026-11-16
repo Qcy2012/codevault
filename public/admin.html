@@ -1,35 +1,43 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <script>
-    document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');
-  </script>
+  <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>管理后台 - CodeVault</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.10.0/build/styles/github-dark.min.css">
   <link rel="stylesheet" href="css/style.css">
   <style>
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
-    th { background: #1e293b; color: #94a3b8; }
-    tr:hover { background: #1e293b; }
+    /* 局部样式：表格与面板控制 */
+    table { width: 100%; border-collapse: collapse; margin-top: 0; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    th { background: var(--card-bg); color: var(--muted); font-weight: 600; }
+    tr:hover { background: rgba(56, 189, 248, 0.05); }
+    
+    .tab-btn { 
+      padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; 
+      font-size: 14px; font-weight: 600; transition: all 0.2s;
+    }
+    .tab-btn.active { background: #0284c7; color: #fff; }
+    .tab-btn:not(.active) { background: var(--border-color); color: var(--text-color); }
   </style>
 </head>
 <body>
   <header class="topbar">
     <a class="logo" href="index.html">CodeVault</a>
-    <nav id="nav-auth"></nav>
+    <nav id="nav-auth" style="margin-left: auto;"></nav>
   </header>
 
-  <main class="container">
-    <div class="toolbar card" style="margin-bottom: 24px; padding: 12px;">
-      <button id="tab-snippets" class="active" style="background: #0284c7;">📦 代码管理</button>
-      <button id="tab-logs" style="background: #475569;">📜 操作日志</button>
+  <main class="container" style="max-width: 1200px;">
+    <h1>管理后台</h1>
+    
+    <!-- Tab 切换栏 -->
+    <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+      <button id="tab-snippets" class="tab-btn active">📦 代码管理</button>
+      <button id="tab-logs" class="tab-btn">📜 操作日志</button>
     </div>
 
-    <!-- 代码管理面板 -->
-    <div id="panel-snippets" class="card" style="padding: 0; overflow: hidden;">
+    <!-- 面板 1：代码管理 -->
+    <div id="panel-snippets" class="card" style="padding: 0; overflow: hidden; display: block;">
       <table>
         <thead>
           <tr>
@@ -41,25 +49,25 @@
           </tr>
         </thead>
         <tbody id="admin-table-body">
-          <tr><td colspan="5">加载中...</td></tr>
+          <tr><td colspan="5" style="text-align: center;">加载中...</td></tr>
         </tbody>
       </table>
     </div>
 
-    <!-- 操作日志面板 -->
-    <div id="panel-logs" class="card hidden" style="padding: 0; overflow: hidden;">
+    <!-- 面板 2：操作日志 -->
+    <div id="panel-logs" class="card" style="padding: 0; overflow: hidden; display: none;">
       <table>
         <thead>
           <tr>
-            <th>时间</th>
-            <th>操作人</th>
-            <th>动作</th>
+            <th style="width: 150px;">时间</th>
+            <th style="width: 120px;">操作人</th>
+            <th style="width: 150px;">动作</th>
             <th>详情</th>
-            <th>IP</th>
+            <th style="width: 120px;">IP</th>
           </tr>
         </thead>
         <tbody id="logs-table-body">
-          <tr><td colspan="5">加载中...</td></tr>
+          <tr><td colspan="5" style="text-align: center;">加载中...</td></tr>
         </tbody>
       </table>
     </div>
