@@ -440,7 +440,7 @@ function initActions(snippet, user, isOwner) {
         showAlert("打包下载失败，请重试");
       } finally {
         downloadBtn.disabled = false;
-        downloadBtn.textContent = "&lt;\/&gt; 下载项目 (.zip)";
+        downloadBtn.textContent = "</> 下载项目 (.zip)";
       }
     };
   }
