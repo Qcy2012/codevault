@@ -59,6 +59,7 @@ function renderSnippet(snippet, root) {
           👍 ${snippet.is_liked ? '已赞' : '点赞'} (<span id="like-count">${snippet.likes_count}</span>)
         </button>
         ${user ? `<button id="fav-btn">收藏</button>` : `<a class="button" href="login.html">登录后收藏</a>`}
+        <button id="download-zip-btn" style="background: linear-gradient(180deg, #8b5cf6 0%, #6d28d9 100%); border-color: #5b21b6;">&lt;\/&gt; 下载项目 (.zip)</button>
         ${isOwner ? `<a class="button" href="edit.html?id=${snippet.id}">编辑</a><button id="del-btn" class="danger">删除</button>` : ""}
       </div>
       ${descHtml ? `<section class="markdown">${descHtml}</section>` : ""}
@@ -397,6 +398,50 @@ function initActions(snippet, user, isOwner) {
         await snippetApi.remove(snippet.id);
         location.href = "index.html";
       } catch (error) { showAlert(error.message); }
+    };
+  }
+
+  const downloadBtn = document.getElementById("download-zip-btn");
+  if (downloadBtn) {
+    downloadBtn.onclick = async () => {
+      try {
+        downloadBtn.disabled = true;
+        downloadBtn.textContent = "📦 正在打包...";
+
+        const zip = new JSZip();
+
+        // 遍历当前所有的文件，加入 zip 压缩包
+        currentSnippetFiles.forEach(file => {
+          // 清理文件名中的非法字符（防 Windows/Mac 报错）
+          const safeFilename = file.filename.replace(/[\\/:*?"<>|]/g, "_") || "untitled.txt";
+          zip.file(safeFilename, file.code);
+        });
+
+        // 生成 zip 二进制流
+        const content = await zip.generateAsync({ type: "blob" });
+
+        // 触发浏览器下载
+        const url = URL.createObjectURL(content);
+        const a = document.createElement("a");
+        a.href = url;
+        // 用片段标题作为压缩包名，清理非法字符
+        const safeTitle = (snippet.title || "code").replace(/[\\/:*?"<>|]/g, "_");
+        a.download = `${safeTitle}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        
+        // 清理内存和 DOM
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast("✅ 项目打包下载成功！");
+      } catch (error) {
+        console.error("打包失败:", error);
+        showAlert("打包下载失败，请重试");
+      } finally {
+        downloadBtn.disabled = false;
+        downloadBtn.textContent = "&lt;\/&gt; 下载项目 (.zip)";
+      }
     };
   }
 }
