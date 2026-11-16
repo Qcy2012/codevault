@@ -12,14 +12,20 @@ async function loadSnippet(password = null) {
   const root = document.getElementById("detail");
   if (!id) return;
 
+  // 如果没有手动传密码，尝试从 sessionStorage 拿
+  if (!password) {
+    password = sessionStorage.getItem(`snippet_pwd_${id}`);
+  }
+
   try {
-    const headers = {};
+    const headers = { "Content-Type": "application/json" };
+    // 带上用户 Token，用于判断是否是作者本人
+    if (getToken()) headers["Authorization"] = `Bearer ${getToken()}`;
     if (password) headers["X-Snippet-Password"] = password;
 
     const res = await fetch(`${API_BASE}/api/snippets/${id}`, { headers });
     const data = await res.json();
 
-    // 核心：如果需要密码，渲染解锁 UI
     if (data.require_password) {
       root.innerHTML = `
         <div class="card" style="text-align: center; padding: 60px 20px;">
@@ -37,7 +43,7 @@ async function loadSnippet(password = null) {
       document.getElementById("unlock-btn").onclick = () => {
         const pwd = document.getElementById("unlock-password").value.trim();
         if (!pwd) return;
-        loadSnippet(pwd); // 重新请求，带上密码
+        loadSnippet(pwd);
       };
       document.getElementById("unlock-password").onkeydown = (e) => {
         if (e.key === "Enter") document.getElementById("unlock-btn").click();
@@ -46,8 +52,13 @@ async function loadSnippet(password = null) {
     }
 
     if (!res.ok) {
-      root.innerHTML = `<p class="message error" style="text-align: center; padding: 40px;">${escapeHtml(data.detail || "加载失败")}</p>`;
+      root.innerHTML = `<p class="message error" style="text-align: center; padding: 40px; font-size: 18px;">${escapeHtml(data.detail || "加载失败")}</p>`;
       return;
+    }
+
+    // 如果解密成功，记住密码（存在当前标签页）
+    if (password) {
+      sessionStorage.setItem(`snippet_pwd_${id}`, password);
     }
 
     renderSnippet(data, root);

@@ -249,27 +249,24 @@ snippets.get("/:id", optionalAuth, async (c) => {
 
   const isOwner = current && current.id === row.user_id;
 
-  // 状态机校验：过期检查 (安全日期解析)
+  // 1. 过期检查
   if (row.expires_at && !isOwner) {
-    // 将空格替换为T，并确保带有Z后缀
     let timeStr = row.expires_at.replace(' ', 'T');
     if (!timeStr.endsWith('Z')) timeStr += 'Z';
     const expireTime = new Date(timeStr).getTime();
-    
-    // 只有当解析出有效时间，且当前时间大于过期时间时才拦截
     if (!isNaN(expireTime) && Date.now() > expireTime) {
       return c.json({ detail: "该代码片段已过期并销毁" }, 410);
     }
   }
 
-  // 状态机校验：阅后即销毁检查 (防 null 报错)
+  // 2. 阅后即销毁检查
   const maxViews = Number(row.max_views || 0);
   const viewCount = Number(row.view_count || 0);
   if (maxViews > 0 && viewCount >= maxViews && !isOwner) {
     return c.json({ detail: "该代码片段已达到最大查看次数并销毁" }, 410);
   }
 
-  // 状态机校验：密码拦截
+  // 3. 密码拦截
   if (row.password_hash && !isOwner) {
     const providedPassword = c.req.header("X-Snippet-Password");
     if (!providedPassword) {
@@ -279,12 +276,13 @@ snippets.get("/:id", optionalAuth, async (c) => {
     if (!isValid) return c.json({ detail: "访问密码错误" }, 403);
   }
 
-  // 全部通过，增加查看次数
-  await db.execute({ sql: "UPDATE snippets SET view_count = view_count + 1 WHERE id = ?", args: [id] });
-  row.view_count += 1;
+  // 核心修复：只有非作者，或者没设限制的情况，才增加查看次数
+  if (!isOwner) {
+    await db.execute({ sql: "UPDATE snippets SET view_count = view_count + 1 WHERE id = ?", args: [id] });
+    row.view_count += 1;
+  }
   
-  // 清理敏感字段，防止返回给前端
-  delete row.password_hash;
+  delete row.password_hash; // 绝不给前端返回密码哈希
   
   const filesRes = await db.execute({ sql: "SELECT filename, language, code FROM snippet_files WHERE snippet_id = ?", args: [id] });
   const tagMap = await loadTagsForSnippets([id]);
