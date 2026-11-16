@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS snippets (
     is_public   INTEGER NOT NULL DEFAULT 1,
     view_count  INTEGER NOT NULL DEFAULT 0,
     is_deleted  INTEGER NOT NULL DEFAULT 0,
+    password_hash TEXT,
+    max_views   INTEGER NOT NULL DEFAULT 0,
+    expires_at  TEXT,
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -96,5 +99,8 @@ try { await db.execute("ALTER TABLE users ADD COLUMN api_key_usage INTEGER NOT N
 try { await db.execute("ALTER TABLE users ADD COLUMN last_api_call_at TEXT"); } catch (e) {}
 try { await db.execute("ALTER TABLE snippets ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"); } catch (e) {}
 try { await db.execute("ALTER TABLE users ADD COLUMN last_active_at TEXT"); } catch (e) {}
+try { await db.execute("ALTER TABLE snippets ADD COLUMN password_hash TEXT"); } catch (e) {}
+try { await db.execute("ALTER TABLE snippets ADD COLUMN max_views INTEGER NOT NULL DEFAULT 0"); } catch (e) {}
+try { await db.execute("ALTER TABLE snippets ADD COLUMN expires_at TEXT"); } catch (e) {}
 
 export { db };

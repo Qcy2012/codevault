@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db/index.js";
 import { requireAuth, optionalAuth } from "../middleware/auth.js";
+import { bcrypt } from "bcryptjs";
 
 const snippets = new Hono();
 
@@ -230,8 +231,6 @@ snippets.get("/", optionalAuth, async (c) => {
 
 snippets.get("/:id", optionalAuth, async (c) => {
   const id = Number(c.req.param("id"));
-  if (!id) return c.json({ detail: "无效的片段 ID" }, 400);
-
   const current = c.get("user");
   const currentUserId = current ? current.id : -1;
 
@@ -248,24 +247,46 @@ snippets.get("/:id", optionalAuth, async (c) => {
   if (!row) return c.json({ detail: "片段不存在" }, 404);
   if (row.is_deleted && (!current || current.id !== row.user_id)) return c.json({ detail: "片段不存在" }, 404);
 
-  // 查询附加文件
-  const filesRes = await db.execute({
-    sql: "SELECT filename, language, code FROM snippet_files WHERE snippet_id = ? ORDER BY id ASC",
-    args: [id]
-  });
+  const isOwner = current && current.id === row.user_id;
 
+  // 状态机校验：过期检查
+  if (row.expires_at && !isOwner) {
+    const expireTime = new Date(row.expires_at.replace(' ', 'T') + 'Z').getTime();
+    if (Date.now() > expireTime) {
+      return c.json({ detail: "该代码片段已过期并自毁" }, 410);
+    }
+  }
+
+  // 状态机校验：阅后即焚检查
+  if (row.max_views > 0 && row.view_count >= row.max_views && !isOwner) {
+    return c.json({ detail: "该代码片段已达到最大查看次数并自毁" }, 410);
+  }
+
+  // 状态机校验：密码拦截
+  if (row.password_hash && !isOwner) {
+    const providedPassword = c.req.header("X-Snippet-Password");
+    if (!providedPassword) {
+      // 不返回任何代码数据，只告诉前端需要密码
+      return c.json({ require_password: true });
+    }
+    const isValid = await bcrypt.compare(providedPassword, row.password_hash);
+    if (!isValid) return c.json({ detail: "访问密码错误" }, 403);
+  }
+
+  // 全部通过，增加查看次数
   await db.execute({ sql: "UPDATE snippets SET view_count = view_count + 1 WHERE id = ?", args: [id] });
   row.view_count += 1;
   
+  // 清理敏感字段，防止返回给前端
+  delete row.password_hash;
+  
+  const filesRes = await db.execute({ sql: "SELECT filename, language, code FROM snippet_files WHERE snippet_id = ?", args: [id] });
   const tagMap = await loadTagsForSnippets([id]);
   const snippetData = rowToSnippet(row, tagMap.get(id) || []);
-  
-  // 组装 files 数组（如果老数据没有 files，就把主 code 包装成一个文件）
-  if (filesRes.rows.length > 0) {
-    snippetData.files = filesRes.rows.map(f => ({ filename: f.filename, language: f.language, code: f.code }));
-  } else {
-    snippetData.files = [{ filename: `main.${row.language === 'cpp' ? 'cpp' : row.language}`, language: row.language, code: row.code }];
-  }
+
+  snippetData.files = filesRes.rows.length > 0 
+    ? filesRes.rows.map(f => ({ filename: f.filename, language: f.language, code: f.code }))
+    : [{ filename: `main.${row.language}`, language: row.language, code: row.code }];
 
   return c.json(snippetData);
 });
@@ -280,18 +301,24 @@ snippets.post("/", requireAuth, async (c) => {
 
   const title = (body.title || "").trim();
   const language = (body.language || "").trim();
-  // 如果传了 files 数组，主代码提取第一个文件的内容
   const files = body.files || [];
   const mainCode = files.length > 0 ? files[0].code : (body.code || "");
-  
   if (!title || !language || !mainCode) return c.json({ detail: "标题、语言、主代码不能为空" }, 400);
 
   const current = c.get("user");
   const isPublic = body.is_public !== false ? 1 : 0;
+  
+  // 处理安全字段
+  let passwordHash = null;
+  if (body.password) {
+    passwordHash = await bcrypt.hash(body.password, 10);
+  }
+  const maxViews = Number(body.max_views) || 0;
+  const expiresAt = body.expires_at || null;
 
   const result = await db.execute({
-    sql: `INSERT INTO snippets (user_id, title, description, language, code, is_public) VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [current.id, title, body.description || null, language, mainCode, isPublic]
+    sql: `INSERT INTO snippets (user_id, title, description, language, code, is_public, password_hash, max_views, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [current.id, title, body.description || null, language, mainCode, isPublic, passwordHash, maxViews, expiresAt]
   });
 
   const snippetId = Number(result.lastInsertRowid);
@@ -327,23 +354,73 @@ snippets.put("/:id", requireAuth, async (c) => {
   const fields = [];
   const values = [];
 
+  // 1. 处理基础字段
   for (const key of ["title", "description", "language", "code"]) {
-    if (body[key] !== undefined) { fields.push(`${key} = ?`); values.push(body[key]); }
+    if (body[key] !== undefined) { 
+      fields.push(`${key} = ?`); 
+      values.push(body[key]); 
+    }
   }
-  if (body.is_public !== undefined) { fields.push("is_public = ?"); values.push(body.is_public ? 1 : 0); }
+  
+  // 2. 处理公开状态
+  if (body.is_public !== undefined) { 
+    fields.push("is_public = ?"); 
+    values.push(body.is_public ? 1 : 0); 
+  }
 
+  // 3. 处理安全字段：阅后即销毁、过期时间
+  if (body.max_views !== undefined) {
+    fields.push("max_views = ?");
+    values.push(Number(body.max_views) || 0);
+  }
+  if (body.expires_at !== undefined) {
+    fields.push("expires_at = ?");
+    values.push(body.expires_at || null);
+  }
+
+  // 4. 处理安全字段：密码修改
+  // 如果 body 中包含了 password 字段（哪怕是空字符串），说明用户想要修改密码
+  if (body.password !== undefined) {
+    if (!body.password) {
+      // 如果传了空字符串或 null，代表用户取消了密码保护
+      fields.push("password_hash = NULL");
+    } else {
+      // 如果传了新密码，重新哈希加密
+      const newHash = await bcrypt.hash(body.password, 10);
+      fields.push("password_hash = ?");
+      values.push(newHash);
+    }
+  }
+
+  // 5. 执行更新主表
   if (fields.length) {
     fields.push("updated_at = datetime('now')");
     values.push(id);
-    await db.execute({ sql: `UPDATE snippets SET ${fields.join(", ")} WHERE id = ?`, args: values });
+    await db.execute({ 
+      sql: `UPDATE snippets SET ${fields.join(", ")} WHERE id = ?`, 
+      args: values 
+    });
   }
 
+  // 6. 处理多文件更新 (全量覆盖)
   if (Array.isArray(body.files)) {
     await db.execute({ sql: "DELETE FROM snippet_files WHERE snippet_id = ?", args: [id] });
     for (const f of body.files) {
       await db.execute({
         sql: "INSERT INTO snippet_files (snippet_id, filename, language, code) VALUES (?, ?, ?, ?)",
         args: [id, f.filename, f.language, f.code]
+      });
+    }
+  }
+
+  // 7. 处理标签更新
+  if (Array.isArray(body.tags)) {
+    await db.execute({ sql: "DELETE FROM snippet_tags WHERE snippet_id = ?", args: [id] });
+    const tags = await getOrCreateTags(body.tags);
+    for (const tag of tags) {
+      await db.execute({ 
+        sql: "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING", 
+        args: [id, tag.id] 
       });
     }
   }

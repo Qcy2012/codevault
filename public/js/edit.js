@@ -117,12 +117,15 @@ async function initEdit() {
 
     const body = {
       title: form.elements.title.value.trim(),
-      language: form.elements.language.value, // 主语言取下拉框
+      language: form.elements.language.value,
       description: form.elements.description.value.trim() || null,
-      code: filesData[0].code, // 兼容老接口，主 code 取第一个文件
-      files: filesData, // 传整个文件数组
+      code: filesData[0].code,
+      files: filesData,
       is_public: form.elements.is_public.checked,
       tags: form.elements.tags.value.split(",").map(i => i.trim()).filter(Boolean),
+      password: form.elements.password.value.trim() || null,
+      max_views: Number(form.elements.max_views.value) || 0,
+      expires_at: form.elements.expires_at.value || null
     };
 
     const submitBtn = form.querySelector('button[type="submit"]');

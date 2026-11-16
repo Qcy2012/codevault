@@ -7,17 +7,50 @@ function highlightLanguage(lang) {
   return map[lang] || "plaintext";
 }
 
-async function loadSnippet() {
+async function loadSnippet(password = null) {
   const id = getId();
   const root = document.getElementById("detail");
-  if (!id) {
-    root.innerHTML = `<p class="message error">缺少片段 ID</p>`;
-    return;
-  }
+  if (!id) return;
 
   try {
-    const snippet = await snippetApi.get(id);
-    renderSnippet(snippet, root);
+    const headers = {};
+    if (password) headers["X-Snippet-Password"] = password;
+
+    const res = await fetch(`${API_BASE}/api/snippets/${id}`, { headers });
+    const data = await res.json();
+
+    // 核心：如果需要密码，渲染解锁 UI
+    if (data.require_password) {
+      root.innerHTML = `
+        <div class="card" style="text-align: center; padding: 60px 20px;">
+          <h2 style="font-size: 48px; margin-bottom: 16px;">🔒</h2>
+          <h3>此代码已被加密</h3>
+          <p class="muted">请输入访问密码以查看内容</p>
+          <div style="display: flex; gap: 8px; justify-content: center; margin-top: 24px;">
+            <input type="password" id="unlock-password" placeholder="输入密码..." style="width: 200px;">
+            <button id="unlock-btn">解锁</button>
+          </div>
+          <p id="unlock-msg" class="message error" style="margin-top: 12px;"></p>
+        </div>
+      `;
+
+      document.getElementById("unlock-btn").onclick = () => {
+        const pwd = document.getElementById("unlock-password").value.trim();
+        if (!pwd) return;
+        loadSnippet(pwd); // 重新请求，带上密码
+      };
+      document.getElementById("unlock-password").onkeydown = (e) => {
+        if (e.key === "Enter") document.getElementById("unlock-btn").click();
+      };
+      return;
+    }
+
+    if (!res.ok) {
+      root.innerHTML = `<p class="message error" style="text-align: center; padding: 40px;">${escapeHtml(data.detail || "加载失败")}</p>`;
+      return;
+    }
+
+    renderSnippet(data, root);
   } catch (error) {
     root.innerHTML = `<p class="message error">${escapeHtml(error.message)}</p>`;
   }

@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS snippets (
     is_public   INTEGER NOT NULL DEFAULT 1,
     view_count  INTEGER NOT NULL DEFAULT 0,
     is_deleted  INTEGER NOT NULL DEFAULT 0,
+    password_hash TEXT,
+    max_views   INTEGER NOT NULL DEFAULT 0,
+    expires_at  TEXT,
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
