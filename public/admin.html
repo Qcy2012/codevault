@@ -7,18 +7,16 @@
   <title>管理后台 - CodeVault</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* 局部样式：表格与面板控制 */
     table { width: 100%; border-collapse: collapse; margin-top: 0; }
     th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
     th { background: var(--card-bg); color: var(--muted); font-weight: 600; }
     tr:hover { background: rgba(56, 189, 248, 0.05); }
     
     .tab-btn { 
-      padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; 
-      font-size: 14px; font-weight: 600; transition: all 0.2s;
+      padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border-color); cursor: pointer; 
+      font-size: 14px; font-weight: 600; transition: all 0.2s; background: var(--card-bg); color: var(--text-color);
     }
-    .tab-btn.active { background: #0284c7; color: #fff; }
-    .tab-btn:not(.active) { background: var(--border-color); color: var(--text-color); }
+    .tab-btn.active { background: #0284c7 !important; color: #fff !important; border-color: #0369a1 !important; }
   </style>
 </head>
 <body>
@@ -30,10 +28,10 @@
   <main class="container" style="max-width: 1200px;">
     <h1>管理后台</h1>
     
-    <!-- Tab 切换栏 -->
+    <!-- Tab 切换栏：直接内联 onclick 绑定 -->
     <div style="display: flex; gap: 12px; margin-bottom: 24px;">
-      <button id="tab-snippets" class="tab-btn active">📦 代码管理</button>
-      <button id="tab-logs" class="tab-btn">📜 操作日志</button>
+      <button id="tab-snippets" class="tab-btn active" onclick="switchPanel('snippets')">📦 代码管理</button>
+      <button id="tab-logs" class="tab-btn" onclick="switchPanel('logs')">📜 操作日志</button>
     </div>
 
     <!-- 面板 1：代码管理 -->
@@ -73,9 +71,10 @@
     </div>
   </main>
 
+  <!-- 引入脚本：加上 v=3 强制跳过缓存 -->
   <script src="js/config.js"></script>
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
-  <script src="js/admin.js"></script>
+  <script src="js/admin.js?v=3"></script>
 </body>
 </html>

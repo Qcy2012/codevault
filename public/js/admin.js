@@ -3,11 +3,19 @@ function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); 
 }
 
+// 全局面板切换函数
 window.switchPanel = function(tab) {
+  console.log("【后台】正在切换到面板:", tab);
+  
   const tabSnippets = document.getElementById("tab-snippets");
   const tabLogs = document.getElementById("tab-logs");
   const panelSnippets = document.getElementById("panel-snippets");
   const panelLogs = document.getElementById("panel-logs");
+
+  if (!tabSnippets || !tabLogs || !panelSnippets || !panelLogs) {
+    console.error("找不到对应的 DOM 元素");
+    return;
+  }
 
   if (tab === 'snippets') {
     tabSnippets.classList.add("active");
@@ -33,7 +41,6 @@ async function loadSnippets() {
       headers: { "Authorization": `Bearer ${getToken()}` }
     });
     
-    // 安全解析：防止后端返回空数据报错
     const text = await res.text();
     if (!res.ok) throw new Error(text || "获取列表失败");
     const rows = text ? JSON.parse(text) : [];
@@ -73,7 +80,6 @@ async function loadLogs() {
       headers: { "Authorization": `Bearer ${getToken()}` }
     });
     
-    // 安全解析
     const text = await res.text();
     if (!res.ok) throw new Error(text || "获取日志失败");
     const rows = text ? JSON.parse(text) : [];
@@ -150,5 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => location.href = "index.html", 2000);
     return;
   }
+  
+  // 初始化加载
   window.switchPanel('snippets');
 });
