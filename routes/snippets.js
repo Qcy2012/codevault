@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db/index.js";
 import { requireAuth, optionalAuth } from "../middleware/auth.js";
-import { bcrypt } from "bcryptjs";
+import  bcrypt  from "bcryptjs";
 
 const snippets = new Hono();
 
