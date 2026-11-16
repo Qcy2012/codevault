@@ -23,8 +23,13 @@
   </header>
 
   <main class="container">
-    <h1>管理后台</h1>
-    <div class="card" style="padding: 0; overflow: hidden;">
+    <div class="toolbar card" style="margin-bottom: 24px; padding: 12px;">
+      <button id="tab-snippets" class="active" style="background: #0284c7;">📦 代码管理</button>
+      <button id="tab-logs" style="background: #475569;">📜 操作日志</button>
+    </div>
+
+    <!-- 代码管理面板 -->
+    <div id="panel-snippets" class="card" style="padding: 0; overflow: hidden;">
       <table>
         <thead>
           <tr>
@@ -36,6 +41,24 @@
           </tr>
         </thead>
         <tbody id="admin-table-body">
+          <tr><td colspan="5">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 操作日志面板 -->
+    <div id="panel-logs" class="card hidden" style="padding: 0; overflow: hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>操作人</th>
+            <th>动作</th>
+            <th>详情</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody id="logs-table-body">
           <tr><td colspan="5">加载中...</td></tr>
         </tbody>
       </table>

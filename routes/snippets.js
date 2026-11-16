@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { db } from "../db/index.js";
 import { requireAuth, optionalAuth } from "../middleware/auth.js";
 import  bcrypt  from "bcryptjs";
+import { logAction } from "../db/audit.js";
 
 const snippets = new Hono();
 
@@ -107,6 +108,10 @@ snippets.delete("/:id/permanent", requireAuth, async (c) => {
   if (!existing || existing.user_id !== current.id) return c.json({ detail: "无权操作" }, 403);
   
   await db.execute({ sql: "DELETE FROM snippets WHERE id = ?", args: [id] });
+
+  // 新增日志埋点：彻底删除
+  await logAction(c, "PERMANENT_DELETE", `彻底删除了代码片段 [${existing.title}] (ID: ${id})`);
+
   return c.body(null, 204);
 });
 
@@ -155,6 +160,10 @@ snippets.delete("/comments/:commentId", requireAuth, async (c) => {
   if (!comment) return c.json({ detail: "评论不存在" }, 404);
   if (Number(comment.user_id) !== Number(user.id) && !user.is_admin) return c.json({ detail: "无权删除此评论" }, 403);
   await db.execute({ sql: "DELETE FROM comments WHERE id = ?", args: [commentId] });
+
+  // 新增日志埋点：删除评论
+  await logAction(c, "DELETE_COMMENT", `删除了评论 (ID: ${commentId})`);
+
   return c.body(null, 204);
 });
 
@@ -342,6 +351,9 @@ snippets.post("/", requireAuth, async (c) => {
     await db.execute({ sql: "INSERT INTO snippet_tags (snippet_id, tag_id) VALUES (?, ?) ON CONFLICT DO NOTHING", args: [snippetId, tag.id] });
   }
 
+  // 新增日志埋点：发布代码
+  await logAction(c, "CREATE_SNIPPET", `发布了代码片段 [${title}] (ID: ${snippetId})`);
+
   return c.json({ id: snippetId, title, language, code: mainCode, is_public: Boolean(isPublic), owner: { id: current.id, display_name: current.display_name }, tags }, 201);
 });
 
@@ -440,6 +452,10 @@ snippets.delete("/:id", requireAuth, async (c) => {
   if (existing.user_id !== current.id && !current.is_admin) return c.json({ detail: "无权删除" }, 403);
   
   await db.execute({ sql: "UPDATE snippets SET is_deleted = 1 WHERE id = ?", args: [id] });
+
+  // 新增日志埋点：移入回收站
+  await logAction(c, "DELETE_SNIPPET", `将代码片段 [${existing.title}] 移入回收站 (ID: ${id})`);
+
   return c.body(null, 204);
 });
 

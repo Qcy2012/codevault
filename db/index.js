@@ -81,6 +81,15 @@ CREATE TABLE IF NOT EXISTS snippet_files (
     language   TEXT NOT NULL,
     code       TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER,
+    display_name TEXT,
+    action      TEXT NOT NULL,
+    details     TEXT,
+    ip_address  TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `;
 
 const statements = schema.split(";").map(s => s.trim()).filter(Boolean);
