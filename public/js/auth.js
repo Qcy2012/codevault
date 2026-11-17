@@ -124,22 +124,42 @@ async function handleRegister(event) {
 document.addEventListener("DOMContentLoaded", renderNav);
 
 // ==========================================
-// 全局命令面板 (Command Palette)
+// 全局命令面板 (支持搜索 + 指令模式)
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
-  // 避免重复注入
   if (document.getElementById("command-palette")) return;
 
-  // 动态注入 HTML
+  // 1. 定义所有可用的指令
+  const commands = [
+    { id: "dark", title: "切换深色/浅色模式", icon: "Dark/Light", run: () => { if (typeof toggleTheme === 'function') toggleTheme(); } },
+    { id: "new", title: "发布新代码片段", icon: "New Snippet", run: () => { location.href = "edit.html"; } },
+    { id: "home", title: "返回首页", icon: "Home", run: () => { location.href = "index.html"; } },
+    { id: "dashboard", title: "打开数据仪表板", icon: "Data Dashboard", run: () => { location.href = "dashboard.html"; } },
+    { id: "api", title: "查看 API 文档", icon: "View API Docs", run: () => { location.href = "api-docs.html"; } },
+    { id: "my", title: "我的主页", icon: "My Profile", run: () => { 
+        if (getUser()) location.href = "me.html"; 
+        else location.href = "login.html"; 
+    }},
+    { id: "logout", title: "退出登录", icon: "Logout", run: () => { 
+        clearAuth();
+        location.href = "index.html"; 
+    }}
+  ];
+
+  // 2. 注入 HTML 骨架
   const paletteHTML = `
     <div id="command-palette" class="command-overlay hidden">
       <div class="command-box">
         <div class="command-input-wrapper">
-          <svg style="width: 20px; height: 20px; fill: var(--muted); margin-right: 12px;" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-          <input id="command-input" type="text" placeholder="搜索全站代码片段..." autocomplete="off">
+          <svg id="cmd-icon" style="width: 20px; height: 20px; fill: var(--muted); margin-right: 12px;" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input id="command-input" type="text" placeholder="输入搜索关键词，或输入 > 进入指令模式..." autocomplete="off">
           <span class="command-esc">ESC</span>
         </div>
-        <div class="command-hints">
+        
+        <!-- 指令列表容器 -->
+        <div id="command-list" class="command-list"></div>
+        
+        <div class="command-hints" id="command-hints">
           <span><kbd>Enter</kbd> 搜索</span>
           <span><kbd>ESC</kbd> 关闭</span>
         </div>
@@ -150,19 +170,139 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const overlay = document.getElementById("command-palette");
   const commandInput = document.getElementById("command-input");
+  const commandList = document.getElementById("command-list");
+  const hints = document.getElementById("command-hints");
 
-  // 键盘监听
+  let isCommandMode = false;
+  let filteredCommands = [];
+  let selectedIndex = 0;
+
+  // 3. 渲染指令列表
+  const renderCommands = (query) => {
+    const searchTerm = query.slice(1).toLowerCase().trim();
+    
+    // 过滤匹配的指令
+    filteredCommands = commands.filter(cmd => 
+      cmd.id.toLowerCase().includes(searchTerm) || 
+      cmd.title.includes(searchTerm)
+    );
+
+    if (filteredCommands.length === 0) {
+      commandList.innerHTML = `<div class="command-item" style="justify-content: center; color: var(--muted);">没有找到匹配的指令</div>`;
+      selectedIndex = -1;
+      return;
+    }
+
+    selectedIndex = 0; // 默认选中第一个
+    commandList.innerHTML = filteredCommands.map((cmd, i) => `
+      <div class="command-item ${i === 0 ? 'selected' : ''}" data-index="${i}">
+        <div class="command-icon">${cmd.icon}</div>
+        <div class="command-text">${cmd.title}</div>
+        <div class="command-shortcut">&gt; ${cmd.id}</div>
+      </div>
+    `).join("");
+
+    // 绑定鼠标点击事件
+    document.querySelectorAll(".command-item").forEach(el => {
+      el.onclick = (e) => {
+        e.stopPropagation();
+        const index = Number(el.dataset.index);
+        if (filteredCommands[index]) executeCommand(filteredCommands[index]);
+      };
+    });
+  };
+
+  // 4. 执行指令
+  const executeCommand = (cmd) => {
+    overlay.classList.add("hidden");
+    commandInput.value = "";
+    setTimeout(() => cmd.run(), 100); // 留出动画时间
+  };
+
+  // 5. 核心：输入监听（切换模式）
+  commandInput.addEventListener("input", (e) => {
+    const val = commandInput.value;
+
+    if (val.startsWith(">")) {
+      // 进入指令模式
+      isCommandMode = true;
+      commandList.classList.add("show");
+      hints.style.display = "none"; // 隐藏原本的搜索提示
+      document.getElementById("cmd-icon").innerHTML = `<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>`; // 变成对勾图标
+      renderCommands(val);
+    } else {
+      // 退出指令模式
+      isCommandMode = false;
+      commandList.classList.remove("show");
+      hints.style.display = "flex";
+      document.getElementById("cmd-icon").innerHTML = `<path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>`;
+    }
+  });
+
+  // 6. 键盘事件（Esc 关闭、回车执行、上下键切换）
+  commandInput.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      overlay.classList.add("hidden");
+      commandInput.blur();
+      return;
+    }
+
+    if (isCommandMode) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (selectedIndex < filteredCommands.length - 1) {
+          document.querySelectorAll(".command-item")[selectedIndex].classList.remove("selected");
+          selectedIndex++;
+          const el = document.querySelectorAll(".command-item")[selectedIndex];
+          el.classList.add("selected");
+          el.scrollIntoView({ block: "nearest" });
+        }
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (selectedIndex > 0) {
+          document.querySelectorAll(".command-item")[selectedIndex].classList.remove("selected");
+          selectedIndex--;
+          const el = document.querySelectorAll(".command-item")[selectedIndex];
+          el.classList.add("selected");
+          el.scrollIntoView({ block: "nearest" });
+        }
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (selectedIndex >= 0 && filteredCommands[selectedIndex]) {
+          executeCommand(filteredCommands[selectedIndex]);
+        }
+      }
+    } else {
+      // 普通搜索逻辑
+      if (e.key === "Enter") {
+        const q = commandInput.value.trim();
+        if (!q) return;
+        overlay.classList.add("hidden");
+        commandInput.blur();
+        
+        const isHome = window.location.pathname.endsWith("index.html") || window.location.pathname === "/" || window.location.pathname.endsWith("/");
+        if (isHome) {
+          const searchEl = document.getElementById("search");
+          if (searchEl) searchEl.value = q;
+          if (typeof state !== "undefined") {
+            state.q = q; state.page = 1;
+            if (typeof loadList === "function") loadList();
+          }
+        } else {
+          window.location.href = `index.html?q=${encodeURIComponent(q)}`;
+        }
+      }
+    }
+  });
+
+  // 7. 全局唤起快捷键 (Ctrl + K)
   document.addEventListener("keydown", (e) => {
-    // 唤起面板
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
       e.preventDefault();
       overlay.classList.remove("hidden");
+      commandInput.value = ""; // 清空上次内容
+      commandInput.dispatchEvent(new Event("input")); // 重置模式
       setTimeout(() => commandInput.focus(), 50);
-    }
-    // 关闭面板
-    if (e.key === "Escape" && !overlay.classList.contains("hidden")) {
-      overlay.classList.add("hidden");
-      commandInput.blur();
     }
   });
 
@@ -171,32 +311,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target === overlay) {
       overlay.classList.add("hidden");
       commandInput.blur();
-    }
-  });
-
-  // 回车执行搜索
-  commandInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      const q = commandInput.value.trim();
-      overlay.classList.add("hidden");
-      commandInput.blur();
-
-      // 智能判断：如果当前在首页，直接刷新列表；如果不在首页，跳转回首页并带上参数
-      const isHome = window.location.pathname.endsWith("index.html") || window.location.pathname === "/" || window.location.pathname.endsWith("/");
-      
-      if (isHome) {
-        // 同步搜索框，触发列表刷新
-        const searchEl = document.getElementById("search");
-        if (searchEl) searchEl.value = q;
-        if (typeof state !== "undefined") {
-          state.q = q;
-          state.page = 1;
-          if (typeof loadList === "function") loadList();
-        }
-      } else {
-        // 跳到首页搜索
-        window.location.href = `index.html?q=${encodeURIComponent(q)}`;
-      }
     }
   });
 });
