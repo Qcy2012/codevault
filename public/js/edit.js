@@ -7,59 +7,58 @@ let activeFileIndex = 0;
 let codeEditor;
 let autoSaveTimer = null;
 
-// 生成草稿存储的 Key
 function getDraftKey(id) {
   return id ? `codevault_draft_${id}` : `codevault_draft_new`;
 }
 
-// 自动保存草稿
 function saveDraft(id, form) {
-  const key = getDraftKey(id);
-  
-  // 每次保存前，先把当前编辑器里的代码同步到数组
-  if (filesData[activeFileIndex]) {
-    filesData[activeFileIndex].code = codeEditor.getValue();
+  try {
+    const key = getDraftKey(id);
+    if (filesData[activeFileIndex]) {
+      filesData[activeFileIndex].code = codeEditor.getValue();
+    }
+
+    const draft = {
+      title: form.elements.title ? form.elements.title.value : "",
+      language: form.elements.language ? form.elements.language.value : "cpp",
+      description: form.elements.description ? form.elements.description.value : "",
+      tags: form.elements.tags ? form.elements.tags.value : "",
+      is_public: form.elements.is_public ? form.elements.is_public.checked : true,
+      password: form.elements.password ? form.elements.password.value : "",
+      max_views: form.elements.max_views ? form.elements.max_views.value : "0",
+      expires_at: form.elements.expires_at ? form.elements.expires_at.value : "",
+      filesData: filesData,
+      activeFileIndex: activeFileIndex,
+      savedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(key, JSON.stringify(draft));
+    console.log("💾 草稿自动保存成功");
+  } catch (e) {
+    console.error("❌ 保存草稿失败:", e);
   }
-
-  const draft = {
-    title: form.elements.title.value.trim(),
-    language: form.elements.language.value,
-    description: form.elements.description.value,
-    tags: form.elements.tags.value,
-    is_public: form.elements.is_public.checked,
-    password: form.elements.password.value,
-    max_views: form.elements.max_views.value,
-    expires_at: form.elements.expires_at.value,
-    filesData: filesData,
-    activeFileIndex: activeFileIndex,
-    savedAt: new Date().toISOString()
-  };
-
-  localStorage.setItem(key, JSON.stringify(draft));
 }
 
-// 加载草稿
 async function loadDraft(id) {
-  const key = getDraftKey(id);
-  const raw = localStorage.getItem(key);
-  if (!raw) return false;
-
   try {
+    const key = getDraftKey(id);
+    const raw = localStorage.getItem(key);
+    if (!raw) return false;
+
     const draft = JSON.parse(raw);
-    // 如果草稿是空的（比如没有任何代码），就不恢复了
     if (!draft.filesData || draft.filesData.length === 0) return false;
 
     const timeStr = new Date(draft.savedAt).toLocaleString('zh-CN', { hour12: false });
-    const confirmRestore = await showConfirm(`发现 ${timeStr} 的本地草稿，是否恢复？\n（如果点击取消，将丢失该草稿）`);
+    const confirmRestore = await showConfirm(`发现 ${timeStr} 的本地草稿，是否恢复？\n（点击取消将丢失该草稿）`);
     
     if (confirmRestore) {
       return draft;
     } else {
-      // 用户选择不恢复，清理掉旧草稿
       localStorage.removeItem(key);
       return false;
     }
   } catch (e) {
+    console.error("读取草稿失败:", e);
     return false;
   }
 }
@@ -70,7 +69,6 @@ async function initEdit() {
   const form = document.getElementById("edit-form");
   const id = getId();
 
-  // 1. 初始化编辑器
   codeEditor = CodeMirror.fromTextArea(document.getElementById("code-input"), {
     lineNumbers: true, theme: "dracula", mode: "text/x-c++src",
     matchBrackets: true, autoCloseBrackets: true, indentUnit: 4, tabSize: 4, lineWrapping: true
@@ -86,9 +84,6 @@ async function initEdit() {
   };
   descInput.addEventListener("input", updatePreview);
 
-  // ==========================================
-  // 核心：渲染与状态管理
-  // ==========================================
   const renderTabs = () => {
     const tabsContainer = document.getElementById("file-tabs");
     tabsContainer.innerHTML = filesData.map((f, i) => `
@@ -104,10 +99,8 @@ async function initEdit() {
   const renderEditor = () => {
     const file = filesData[activeFileIndex];
     if (!file) return;
-
     langSelect.value = file.language;
     langSelect.dispatchEvent(new Event("change"));
-    
     codeEditor.setOption("mode", modeMap[file.language] || "null");
     codeEditor.setValue(file.code);
     renderTabs();
@@ -140,30 +133,28 @@ async function initEdit() {
     renderEditor();
   };
 
-  // 监听语言切换
   langSelect.addEventListener("change", () => {
     codeEditor.setOption("mode", modeMap[langSelect.value] || "null");
     if (filesData[activeFileIndex]) filesData[activeFileIndex].language = langSelect.value;
   });
 
   // ==========================================
-  // 回显数据 / 加载草稿
+  // 核心：加载数据与草稿
   // ==========================================
   let hasRestored = false;
 
   if (id) {
-    // 优先检查草稿
     const draft = await loadDraft(id);
     if (draft) {
       hasRestored = true;
-      form.elements.title.value = draft.title;
-      form.elements.language.value = draft.language;
-      form.elements.description.value = draft.description;
-      form.elements.tags.value = draft.tags;
-      form.elements.is_public.checked = draft.is_public;
-      form.elements.password.value = draft.password || "";
-      form.elements.max_views.value = draft.max_views || "0";
-      form.elements.expires_at.value = draft.expires_at || "";
+      form.elements.title.value = draft.title || "";
+      form.elements.language.value = draft.language || "cpp";
+      form.elements.description.value = draft.description || "";
+      form.elements.tags.value = draft.tags || "";
+      form.elements.is_public.checked = draft.is_public !== false;
+      if(form.elements.password) form.elements.password.value = draft.password || "";
+      if(form.elements.max_views) form.elements.max_views.value = draft.max_views || "0";
+      if(form.elements.expires_at) form.elements.expires_at.value = draft.expires_at || "";
       
       filesData = draft.filesData;
       activeFileIndex = draft.activeFileIndex || 0;
@@ -172,7 +163,6 @@ async function initEdit() {
       document.querySelector("h1").textContent = "编辑片段 (已恢复草稿)";
       showToast("✅ 已恢复本地草稿");
     } else {
-      // 没草稿，正常拉取服务器数据
       try {
         const snippet = await snippetApi.get(id);
         form.elements.title.value = snippet.title;
@@ -180,9 +170,8 @@ async function initEdit() {
         form.elements.description.value = snippet.description || "";
         form.elements.tags.value = snippet.tags.map((tag) => tag.name).join(", ");
         form.elements.is_public.checked = snippet.is_public;
-        form.elements.password.value = "";
-        form.elements.max_views.value = snippet.max_views || "0";
-        form.elements.expires_at.value = snippet.expires_at || "";
+        if(form.elements.max_views) form.elements.max_views.value = snippet.max_views || "0";
+        if(form.elements.expires_at) form.elements.expires_at.value = snippet.expires_at || "";
         
         filesData = snippet.files || [{ filename: "main.cpp", language: snippet.language, code: snippet.code }];
         updatePreview();
@@ -190,18 +179,18 @@ async function initEdit() {
       } catch (error) { showAlert(error.message); }
     }
   } else {
-    // 新建模式
     const draft = await loadDraft(null);
     if (draft) {
       hasRestored = true;
-      form.elements.title.value = draft.title;
-      form.elements.language.value = draft.language;
-      form.elements.description.value = draft.description;
-      form.elements.tags.value = draft.tags;
-      form.elements.is_public.checked = draft.is_public;
-      form.elements.password.value = draft.password || "";
-      form.elements.max_views.value = draft.max_views || "0";
-      form.elements.expires_at.value = draft.expires_at || "";
+      form.elements.title.value = draft.title || "";
+      form.elements.language.value = draft.language || "cpp";
+      form.elements.description.value = draft.description || "";
+      form.elements.tags.value = draft.tags || "";
+      form.elements.is_public.checked = draft.is_public !== false;
+      if(form.elements.password) form.elements.password.value = draft.password || "";
+      if(form.elements.max_views) form.elements.max_views.value = draft.max_views || "0";
+      if(form.elements.expires_at) form.elements.expires_at.value = draft.expires_at || "";
+      
       filesData = draft.filesData;
       activeFileIndex = draft.activeFileIndex || 0;
       updatePreview();
@@ -211,29 +200,33 @@ async function initEdit() {
     }
   }
 
-  // 初始渲染
   langSelect.value = filesData[activeFileIndex].language;
   codeEditor.setOption("mode", modeMap[filesData[activeFileIndex].language] || "null");
   codeEditor.setValue(filesData[activeFileIndex].code);
   renderTabs();
 
   // ==========================================
-  // 核心：自动保存草稿监听
+  // 监听并自动保存
   // ==========================================
   const triggerAutoSave = () => {
     clearTimeout(autoSaveTimer);
+    // 缩短为 1 秒防抖，防止用户按 F5 太快
     autoSaveTimer = setTimeout(() => {
       saveDraft(id, form);
-      // 可以加个隐晦的 UI 提示，这里直接 console 打印
-      console.log("💾 草稿已自动保存");
-    }, 2000); // 防抖 2 秒
+    }, 1000); 
   };
 
-  // 监听编辑器内容变化
   codeEditor.on("change", triggerAutoSave);
-  // 监听表单其他输入
   form.addEventListener("input", triggerAutoSave);
   form.addEventListener("change", triggerAutoSave);
+
+  // 当页面关闭或刷新时，强制保存最后一次状态（双保险）
+  window.addEventListener("beforeunload", () => {
+    if (filesData[activeFileIndex]) {
+      filesData[activeFileIndex].code = codeEditor.getValue();
+    }
+    saveDraft(id, form);
+  });
 
   // ==========================================
   // 提交表单
@@ -250,9 +243,9 @@ async function initEdit() {
       files: filesData, 
       is_public: form.elements.is_public.checked,
       tags: form.elements.tags.value.split(",").map(i => i.trim()).filter(Boolean),
-      password: form.elements.password.value.trim() || null,
-      max_views: Number(form.elements.max_views.value) || 0,
-      expires_at: form.elements.expires_at.value || null
+      password: form.elements.password ? form.elements.password.value.trim() || null : null,
+      max_views: form.elements.max_views ? Number(form.elements.max_views.value) || 0 : 0,
+      expires_at: form.elements.expires_at ? form.elements.expires_at.value || null : null
     };
 
     const submitBtn = form.querySelector('button[type="submit"]');
@@ -262,7 +255,6 @@ async function initEdit() {
     try {
       const saved = id ? await snippetApi.update(id, body) : await snippetApi.create(body);
       
-      // 核心：发布成功后，立刻清除本地草稿！
       localStorage.removeItem(getDraftKey(id));
       
       location.href = `snippet.html?id=${saved.id}`;
