@@ -131,16 +131,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 1. 定义所有可用的指令
   const commands = [
-    { id: "dark", title: "切换深色/浅色模式", icon: "Dark/Light", run: () => { if (typeof toggleTheme === 'function') toggleTheme(); } },
-    { id: "new", title: "发布新代码片段", icon: "New Snippet", run: () => { location.href = "edit.html"; } },
-    { id: "home", title: "返回首页", icon: "Home", run: () => { location.href = "index.html"; } },
-    { id: "dashboard", title: "打开数据仪表板", icon: "Data Dashboard", run: () => { location.href = "dashboard.html"; } },
-    { id: "api", title: "查看 API 文档", icon: "View API Docs", run: () => { location.href = "api-docs.html"; } },
-    { id: "my", title: "我的主页", icon: "My Profile", run: () => { 
+    { id: "mode", title: "切换深色/浅色模式", icon: "</>", run: () => { if (typeof toggleTheme === 'function') toggleTheme(); } },
+    { id: "new", title: "发布新代码片段", icon: "</>", run: () => { location.href = "edit.html"; } },
+    { id: "home", title: "返回首页", icon: "</>", run: () => { location.href = "index.html"; } },
+    { id: "dashboard", title: "打开数据仪表板", icon: "</>", run: () => { location.href = "dashboard.html"; } },
+    { id: "api", title: "查看 API 文档", icon: "</>", run: () => { location.href = "api-docs.html"; } },
+    { id: "me", title: "我的主页", icon: "</>", run: () => { 
         if (getUser()) location.href = "me.html"; 
         else location.href = "login.html"; 
     }},
-    { id: "logout", title: "退出登录", icon: "Logout", run: () => { 
+    { id: "logout", title: "退出登录", icon: "</>", run: () => { 
         clearAuth();
         location.href = "index.html"; 
     }}
